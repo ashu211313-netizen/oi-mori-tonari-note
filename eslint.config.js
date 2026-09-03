@@ -3,7 +3,7 @@ import globals from "globals";
 
 export default [
   {
-    ignores: ["node_modules/**", "artifacts/**", "coverage/**"]
+    ignores: ["node_modules/**", "artifacts/**", "coverage/**", "dist/**"]
   },
   js.configs.recommended,
   {
@@ -30,7 +30,7 @@ export default [
     }
   },
   {
-    files: ["tests/e2e.mjs"],
+    files: ["tests/e2e.mjs", "tests/pages-e2e.mjs", "scripts/verify-live-pages.mjs"],
     languageOptions: {
       globals: { ...globals.node, ...globals.browser }
     }

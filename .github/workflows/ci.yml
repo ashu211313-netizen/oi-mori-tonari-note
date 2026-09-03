@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Enable pinned pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.19.0 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: TypeScript checkJs
+        run: pnpm run typecheck
+
+      - name: ESLint
+        run: pnpm run lint
+
+      - name: Build and validators
+        run: pnpm run build
+
+      - name: Build Pages artifact
+        run: pnpm run build:pages
+
+      - name: Validate Pages artifact
+        run: pnpm run validate:pages
+
+      - name: Install Chromium for repository-path E2E
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: GitHub Pages subpath E2E
+        run: pnpm run test:pages

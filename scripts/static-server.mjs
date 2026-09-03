@@ -12,12 +12,22 @@ const MIME_TYPES = {
   ".webmanifest": "application/manifest+json; charset=utf-8"
 };
 
-export function createStaticServer(rootDirectory) {
+export function createStaticServer(rootDirectory, options = {}) {
   const root = path.resolve(rootDirectory);
+  const requestedBasePath = options.basePath ?? "/";
+  const basePath = requestedBasePath === "/"
+    ? "/"
+    : `/${requestedBasePath.replace(/^\/+|\/+$/g, "")}/`;
   return createServer((request, response) => {
     try {
       const pathname = decodeURIComponent(new URL(request.url ?? "/", "http://localhost").pathname);
-      const relative = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
+      if (basePath !== "/" && !pathname.startsWith(basePath)) {
+        response.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+        response.end("Not found");
+        return;
+      }
+      const mountedPath = basePath === "/" ? pathname : `/${pathname.slice(basePath.length)}`;
+      const relative = mountedPath === "/" ? "index.html" : mountedPath.replace(/^\/+/, "");
       const candidate = path.resolve(root, relative);
       if (!candidate.startsWith(`${root}${path.sep}`) || !existsSync(candidate) || !statSync(candidate).isFile()) {
         response.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
