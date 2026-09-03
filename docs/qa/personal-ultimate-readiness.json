@@ -1,0 +1,380 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-02T15:51:23.951Z",
+  "scope": "single-user local/offline use; expansion from verified Japanese Wild World pages without remote image downloads",
+  "classificationBefore": "PERSONAL_USE_COMPLETE",
+  "classificationAfter": "PERSONAL_ULTIMATE_COMPLETE",
+  "personalUltimateComplete": true,
+  "exactMetrics": {
+    "newRealRecords": 1430,
+    "recordsByDomain": {
+      "npc": 17,
+      "facility": 8,
+      "gyroid": 127,
+      "resident": 148,
+      "item": 1130,
+      "event": 0
+    },
+    "searchableByDomain": {
+      "fish": 56,
+      "bug": 56,
+      "fossil": 52,
+      "art": 20,
+      "item": 1130,
+      "resident": 148,
+      "gyroid": 127,
+      "npc": 17,
+      "facility": 8,
+      "event": 0,
+      "total": 1614
+    },
+    "acquisitionCoveredItems": 301,
+    "collectionStateByDomain": {
+      "fish": [
+        "caught",
+        "donated"
+      ],
+      "bug": [
+        "caught",
+        "donated"
+      ],
+      "fossil": [
+        "acquired",
+        "identified",
+        "donated"
+      ],
+      "art": [
+        "acquired",
+        "genuine",
+        "forged",
+        "donated"
+      ],
+      "item": [
+        "acquired",
+        "cataloged",
+        "favorite"
+      ],
+      "gyroid": [
+        "collected",
+        "favorite"
+      ],
+      "resident": [
+        "favorite"
+      ],
+      "npc": [
+        "favorite"
+      ],
+      "facility": [
+        "favorite"
+      ]
+    },
+    "collectionEnabledDomains": [
+      "fish",
+      "bug",
+      "fossil",
+      "art",
+      "item",
+      "gyroid",
+      "resident",
+      "npc",
+      "facility"
+    ],
+    "newCollectionEnabledDomains": [
+      "item",
+      "gyroid",
+      "resident",
+      "npc",
+      "facility"
+    ],
+    "images": {
+      "real": 0,
+      "metadata": 1614,
+      "missing": 1614,
+      "broken": 0,
+      "unmapped": 0,
+      "remoteDownloads": 0
+    }
+  },
+  "automatedGates": {
+    "unitCount": 102,
+    "unit": {
+      "result": "PASS",
+      "exitCode": 0,
+      "summary": [
+        "✔ Source Lineage audit covers every source and unordered source pair (1.8615ms)",
+        "✔ No source pair qualifies as independent without affirmative lineage evidence (1.9319ms)",
+        "✔ JP independent verification is limited to overlapping first-hand fish prices (1.6999ms)",
+        "✔ Evidence Sufficiency re-audit covers every field without weakening the release gate (4.9764ms)",
+        "✔ Evidence Sufficiency keeps conflicts non-definitive and preserves canonical freeze (3.3773ms)",
+        "✔ Conflict tribunal retains every unresolved registry record and field (2.9902ms)",
+        "ℹ tests 102",
+        "ℹ suites 0",
+        "ℹ pass 102",
+        "ℹ fail 0",
+        "ℹ cancelled 0",
+        "ℹ skipped 0",
+        "ℹ todo 0",
+        "ℹ duration_ms 294.1045"
+      ]
+    },
+    "typecheck": {
+      "result": "PASS",
+      "exitCode": 0,
+      "summary": [
+        ""
+      ]
+    },
+    "eslint": {
+      "result": "PASS",
+      "exitCode": 0,
+      "summary": [
+        ""
+      ]
+    },
+    "images": {
+      "result": "PASS",
+      "exitCode": 0,
+      "summary": [
+        "{",
+        "  \"valid\": true,",
+        "  \"currentEntities\": 1614,",
+        "  \"coreEntities\": 184,",
+        "  \"expansionEntities\": 1430,",
+        "  \"availableImages\": 0,",
+        "  \"missingImages\": 1614,",
+        "  \"errors\": []",
+        "}"
+      ]
+    },
+    "data": {
+      "result": "PASS",
+      "exitCode": 0,
+      "summary": [
+        "      \"CONFLICT\": 9,",
+        "      \"CORROBORATED\": 167,",
+        "      \"MULTI_SOURCE_VERIFIED\": 14,",
+        "      \"SINGLE_SOURCE\": 278",
+        "    },",
+        "    \"legacyUnresolved\": 9,",
+        "    \"unresolved\": 9,",
+        "    \"notDistinctGroupCorroborated\": 287,",
+        "    \"notIndependentlyVerified\": 454,",
+        "    \"notJpIndependentlyVerified\": 454,",
+        "    \"releaseBlocking\": 454",
+        "  },",
+        "  \"errors\": []",
+        "}"
+      ]
+    },
+    "provenance": {
+      "result": "PASS",
+      "exitCode": 0,
+      "summary": [
+        "      \"CONFLICT\": 9,",
+        "      \"CORROBORATED\": 167,",
+        "      \"MULTI_SOURCE_VERIFIED\": 14,",
+        "      \"SINGLE_SOURCE\": 278",
+        "    },",
+        "    \"legacyUnresolved\": 9,",
+        "    \"unresolved\": 9,",
+        "    \"notDistinctGroupCorroborated\": 287,",
+        "    \"notIndependentlyVerified\": 454,",
+        "    \"notJpIndependentlyVerified\": 454,",
+        "    \"releaseBlocking\": 454",
+        "  },",
+        "  \"errors\": []",
+        "}"
+      ]
+    },
+    "evidenceSufficiency": {
+      "result": "PASS",
+      "exitCode": 0,
+      "summary": [
+        "{",
+        "  \"valid\": true,",
+        "  \"totalCriticalFields\": 468,",
+        "  \"releaseBlockersAfter\": 454,",
+        "  \"byEvidenceClass\": {",
+        "    \"B_JP_INDEPENDENT_MULTI_SOURCE\": 14,",
+        "    \"C_JP_SINGLE_SOURCE\": 385,",
+        "    \"D_CONFLICT\": 9,",
+        "    \"D_DEPENDENT_CORROBORATION_ONLY\": 60",
+        "  },",
+        "  \"errors\": []",
+        "}"
+      ]
+    },
+    "static": {
+      "result": "PASS",
+      "exitCode": 0,
+      "summary": [
+        "{",
+        "  \"manifest\": {",
+        "    \"name\": \"おい森 となりノート\",",
+        "    \"start_url\": \"./\",",
+        "    \"display\": \"standalone\"",
+        "  },",
+        "  \"serviceWorkerCache\": \"wild-world-companion-v11\",",
+        "  \"errors\": []",
+        "}"
+      ]
+    },
+    "security": {
+      "result": "PASS",
+      "exitCode": 0,
+      "summary": [
+        "{",
+        "  \"csp\": \"default-src 'self'; base-uri 'none'; object-src 'none'; frame-src 'none'; form-action 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'\",",
+        "  \"thirdPartyExecutableAssets\": 0,",
+        "  \"telemetryOrLocationApis\": 0,",
+        "  \"localStorageKey\": \"wildWorldCompanionState.v1\",",
+        "  \"externalSourceLinks\": 63,",
+        "  \"errors\": []",
+        "}"
+      ]
+    }
+  },
+  "browsers": {
+    "chrome": {
+      "generatedAt": "2026-09-02T15:39:04.058Z",
+      "label": "ultimate-v11-chrome",
+      "requested": {
+        "browserType": "chromium",
+        "executable": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "device": "desktop",
+        "headful": false,
+        "testNamePattern": null
+      },
+      "observed": "chromium 152.0.7977.75 (C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe); device=desktop/mobile viewport",
+      "result": "PASS",
+      "tests": 17,
+      "pass": 17,
+      "fail": 0,
+      "exitCode": 0,
+      "durationMs": 8785,
+      "interpretation": "Browser-engine E2E; actual browser status is identified by observed executable/version.",
+      "spawnError": null,
+      "environmentDisposition": "PASS"
+    },
+    "edge": {
+      "generatedAt": "2026-09-02T15:39:20.698Z",
+      "label": "ultimate-v11-edge",
+      "requested": {
+        "browserType": "chromium",
+        "executable": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+        "device": "desktop",
+        "headful": false,
+        "testNamePattern": null
+      },
+      "observed": "chromium 152.0.4191.53 (C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe); device=desktop/mobile viewport",
+      "result": "PASS",
+      "tests": 17,
+      "pass": 17,
+      "fail": 0,
+      "exitCode": 0,
+      "durationMs": 8553,
+      "interpretation": "Browser-engine E2E; actual browser status is identified by observed executable/version.",
+      "spawnError": null,
+      "environmentDisposition": "PASS"
+    },
+    "managedWebKit": {
+      "generatedAt": "2026-09-02T15:39:45.568Z",
+      "label": "ultimate-v11-webkit",
+      "requested": {
+        "browserType": "webkit",
+        "executable": null,
+        "device": "desktop",
+        "headful": false,
+        "testNamePattern": null
+      },
+      "observed": "webkit 26.5 (Playwright managed); device=desktop/mobile viewport",
+      "result": "PASS",
+      "tests": 17,
+      "pass": 17,
+      "fail": 0,
+      "exitCode": 0,
+      "durationMs": 15576,
+      "interpretation": "Browser-engine E2E; actual browser status is identified by observed executable/version.",
+      "spawnError": null,
+      "environmentDisposition": "PASS"
+    },
+    "firefox": {
+      "generatedAt": "2026-09-02T15:29:53.102Z",
+      "label": "ultimate-v11-firefox",
+      "requested": {
+        "browserType": "firefox",
+        "executable": null,
+        "device": "desktop",
+        "headful": false,
+        "testNamePattern": null
+      },
+      "observed": null,
+      "result": "FAIL",
+      "tests": 17,
+      "pass": 0,
+      "fail": 17,
+      "exitCode": 1,
+      "durationMs": 389,
+      "interpretation": "Browser-engine E2E; actual browser status is identified by observed executable/version.",
+      "spawnError": null,
+      "environmentDisposition": "ENVIRONMENT_BLOCKED_BEFORE_APP_ASSERTIONS"
+    }
+  },
+  "persistence": {
+    "storageKey": "wildWorldCompanionState.v1",
+    "schemaVersion": 3,
+    "migration": "PASS 10/10",
+    "serviceWorkerCache": "wild-world-companion-v11",
+    "offlineAndUpdate": "covered by all 17 Chrome/Edge/managed-WebKit E2E cases"
+  },
+  "data": {
+    "version": "2026.09.03.1",
+    "coreEntities": 184,
+    "expansionEntities": 1430,
+    "expansionSources": 48,
+    "coreClaimCoverage": "468/468",
+    "coreJpIndependentVerified": "14/468",
+    "coreConflictFields": 9,
+    "coreConflictRegistry": 6,
+    "canonicalChanges": 0,
+    "residentUncertainties": [
+      {
+        "sourceName": "カルビ",
+        "modernCandidate": "カルピ",
+        "disposition": "UNKNOWN",
+        "reason": "Two source lineages disagree on the Japanese display name; no canonical spelling was adopted."
+      },
+      {
+        "sourceName": "モモコ",
+        "modernCandidate": "ももこ",
+        "disposition": "UNKNOWN",
+        "reason": "Two source lineages disagree on the Japanese display name; no canonical spelling was adopted."
+      }
+    ]
+  },
+  "sourceIntegrity": {
+    "oiMoriUrlsCountAsOneLineage": true,
+    "independentUrlInflation": false,
+    "searchSnippetsUsedAsCanonicalEvidence": false,
+    "crossSeriesCanonicalReuse": false,
+    "extractionReport": "artifacts/data-audit/expansion-extraction-report.json"
+  },
+  "lighthouse": {
+    "lighthouseVersion": "13.4.1",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/152.0.0.0 Safari/537.36",
+    "scores": {
+      "performance": 95,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100
+    },
+    "pwaCategory": "not available in Lighthouse 13; install/offline behavior is covered by static and E2E checks"
+  },
+  "nonBlockingLimits": [
+    "Firefox remains an environment limitation and is not a primary-use blocker under the governing gate.",
+    "events remain 0 records because this execution targeted items, residents, gyroids, NPCs, and facilities; no event facts were invented.",
+    "829 item records retain acquisition UNKNOWN because their source row does not state a specific method.",
+    "real images remain 0 because no user-owned image corpus was supplied; all 1614 records have accessible missing-image metadata."
+  ],
+  "decision": "All governing PERSONAL_ULTIMATE_COMPLETE conditions are evidenced: core regression is zero, expansion domains contain real records, universal search/detail and collection persist, supported acquisition edges validate, local images report zero honestly, and Chrome/Edge/managed-WebKit plus offline update gates pass."
+}

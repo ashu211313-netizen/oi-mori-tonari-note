@@ -1,0 +1,279 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-02T11:21:45.885Z",
+  "scope": "single-user, local/offline Windows use; no public distribution, store release, or monetization",
+  "classificationBefore": "Beta Candidate",
+  "classificationAfter": "PERSONAL_USE_COMPLETE",
+  "personalUseComplete": true,
+  "completionBasis": {
+    "coreFunctions": "search, availability, museum tracking, safe sell judgment, backup/import, and offline reload are covered by unit and E2E tests",
+    "uncertaintyPolicy": "Unverified fields remain qualified; CONFLICT values are explicitly marked unresolved and not confirmed",
+    "imageSupport": "local manifest/import pipeline, stable placeholders, lazy-loading, error fallback, and same-origin runtime cache",
+    "persistence": "storage key wildWorldCompanionState.v1; schema 2; migration/backup PASS 9/9",
+    "primaryEnvironment": "chromium 152.0.7977.75 (C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe); device=desktop/mobile viewport",
+    "outOfScope": [
+      "public HTTPS deployment",
+      "external legal review",
+      "App Store distribution",
+      "monetization"
+    ]
+  },
+  "automatedGates": {
+    "unitCount": 89,
+    "unit": {
+      "result": "PASS",
+      "exitCode": 0,
+      "summary": [
+        "✔ JP independent verification is limited to overlapping first-hand fish prices (1.6446ms)",
+        "✔ Evidence Sufficiency re-audit covers every field without weakening the release gate (3.7895ms)",
+        "✔ Evidence Sufficiency keeps conflicts non-definitive and preserves canonical freeze (2.7895ms)",
+        "✔ Conflict tribunal retains every unresolved registry record and field (2.8613ms)",
+        "ℹ tests 89",
+        "ℹ suites 0",
+        "ℹ pass 89",
+        "ℹ fail 0",
+        "ℹ cancelled 0",
+        "ℹ skipped 0",
+        "ℹ todo 0",
+        "ℹ duration_ms 227.4638"
+      ]
+    },
+    "typecheck": {
+      "result": "PASS",
+      "exitCode": 0,
+      "summary": [
+        ""
+      ]
+    },
+    "eslint": {
+      "result": "PASS",
+      "exitCode": 0,
+      "summary": [
+        ""
+      ]
+    },
+    "images": {
+      "result": "PASS",
+      "exitCode": 0,
+      "summary": [
+        "{",
+        "  \"valid\": true,",
+        "  \"currentEntities\": 184,",
+        "  \"availableImages\": 0,",
+        "  \"missingImages\": 184,",
+        "  \"errors\": []",
+        "}"
+      ]
+    },
+    "data": {
+      "result": "PASS",
+      "exitCode": 0,
+      "summary": [
+        "      \"MULTI_SOURCE_VERIFIED\": 14,",
+        "      \"SINGLE_SOURCE\": 278",
+        "    },",
+        "    \"legacyUnresolved\": 9,",
+        "    \"unresolved\": 9,",
+        "    \"notDistinctGroupCorroborated\": 287,",
+        "    \"notIndependentlyVerified\": 454,",
+        "    \"notJpIndependentlyVerified\": 454,",
+        "    \"releaseBlocking\": 454",
+        "  },",
+        "  \"errors\": []",
+        "}"
+      ]
+    },
+    "provenance": {
+      "result": "PASS",
+      "exitCode": 0,
+      "summary": [
+        "      \"MULTI_SOURCE_VERIFIED\": 14,",
+        "      \"SINGLE_SOURCE\": 278",
+        "    },",
+        "    \"legacyUnresolved\": 9,",
+        "    \"unresolved\": 9,",
+        "    \"notDistinctGroupCorroborated\": 287,",
+        "    \"notIndependentlyVerified\": 454,",
+        "    \"notJpIndependentlyVerified\": 454,",
+        "    \"releaseBlocking\": 454",
+        "  },",
+        "  \"errors\": []",
+        "}"
+      ]
+    },
+    "evidenceSufficiency": {
+      "result": "PASS",
+      "exitCode": 0,
+      "summary": [
+        "{",
+        "  \"valid\": true,",
+        "  \"totalCriticalFields\": 468,",
+        "  \"releaseBlockersAfter\": 454,",
+        "  \"byEvidenceClass\": {",
+        "    \"B_JP_INDEPENDENT_MULTI_SOURCE\": 14,",
+        "    \"C_JP_SINGLE_SOURCE\": 385,",
+        "    \"D_CONFLICT\": 9,",
+        "    \"D_DEPENDENT_CORROBORATION_ONLY\": 60",
+        "  },",
+        "  \"errors\": []",
+        "}"
+      ]
+    },
+    "static": {
+      "result": "PASS",
+      "exitCode": 0,
+      "summary": [
+        "{",
+        "  \"manifest\": {",
+        "    \"name\": \"おい森 となりノート\",",
+        "    \"start_url\": \"./\",",
+        "    \"display\": \"standalone\"",
+        "  },",
+        "  \"serviceWorkerCache\": \"wild-world-companion-v10\",",
+        "  \"errors\": []",
+        "}"
+      ]
+    },
+    "security": {
+      "result": "PASS",
+      "exitCode": 0,
+      "summary": [
+        "{",
+        "  \"csp\": \"default-src 'self'; base-uri 'none'; object-src 'none'; frame-src 'none'; form-action 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'\",",
+        "  \"thirdPartyExecutableAssets\": 0,",
+        "  \"telemetryOrLocationApis\": 0,",
+        "  \"localStorageKey\": \"wildWorldCompanionState.v1\",",
+        "  \"externalSourceLinks\": 15,",
+        "  \"errors\": []",
+        "}"
+      ]
+    }
+  },
+  "data": {
+    "version": "2026.09.01.4",
+    "entities": 184,
+    "criticalFields": 468,
+    "claimCoverage": "468/468",
+    "jpIndependentVerified": "14/468",
+    "publicReleaseBlockerMetric": 454,
+    "statuses": {
+      "CONFLICT": 9,
+      "CORROBORATED": 167,
+      "MULTI_SOURCE_VERIFIED": 14,
+      "SINGLE_SOURCE": 278
+    },
+    "conflictFields": 9,
+    "conflictRegistry": 6,
+    "canonicalChanges": 0,
+    "safeForPersonalUseReason": "Completeness of independent verification is not asserted; uncertain data is preserved and disclosed at the point of use."
+  },
+  "images": {
+    "supportedDomains": [
+      "fish",
+      "bugs",
+      "fossils",
+      "art",
+      "items",
+      "residents",
+      "npcs",
+      "gyroids",
+      "facilities"
+    ],
+    "available": 0,
+    "missingWithFallback": 184,
+    "remoteDownloads": 0
+  },
+  "browsers": {
+    "chrome": {
+      "generatedAt": "2026-09-02T11:20:29.861Z",
+      "label": "personal-v10-chrome",
+      "requested": {
+        "browserType": "chromium",
+        "executable": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "device": "desktop",
+        "headful": false,
+        "testNamePattern": null
+      },
+      "observed": "chromium 152.0.7977.75 (C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe); device=desktop/mobile viewport",
+      "result": "PASS",
+      "tests": 13,
+      "pass": 13,
+      "fail": 0,
+      "exitCode": 0,
+      "durationMs": 6339,
+      "interpretation": "Browser-engine E2E; actual browser status is identified by observed executable/version.",
+      "spawnError": null
+    },
+    "edge": {
+      "generatedAt": "2026-09-02T11:20:37.896Z",
+      "label": "personal-v10-edge",
+      "requested": {
+        "browserType": "chromium",
+        "executable": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+        "device": "desktop",
+        "headful": false,
+        "testNamePattern": null
+      },
+      "observed": "chromium 152.0.4191.53 (C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe); device=desktop/mobile viewport",
+      "result": "PASS",
+      "tests": 13,
+      "pass": 13,
+      "fail": 0,
+      "exitCode": 0,
+      "durationMs": 6389,
+      "interpretation": "Browser-engine E2E; actual browser status is identified by observed executable/version.",
+      "spawnError": null
+    },
+    "managedWebKit": {
+      "generatedAt": "2026-09-02T11:20:49.517Z",
+      "label": "personal-v10-webkit",
+      "requested": {
+        "browserType": "webkit",
+        "executable": null,
+        "device": "desktop",
+        "headful": false,
+        "testNamePattern": null
+      },
+      "observed": "webkit 26.5 (Playwright managed); device=desktop/mobile viewport",
+      "result": "PASS",
+      "tests": 13,
+      "pass": 13,
+      "fail": 0,
+      "exitCode": 0,
+      "durationMs": 9954,
+      "interpretation": "Browser-engine E2E; actual browser status is identified by observed executable/version.",
+      "spawnError": null
+    },
+    "firefox": {
+      "result": "ENVIRONMENT_BLOCKED",
+      "observed": null,
+      "rawResult": "FAIL",
+      "reason": "Playwright Firefox binary was installed, but Windows returned spawn UNKNOWN before browser startup; no app assertion ran."
+    },
+    "actualSafariIOSAndroid": "NOT_REQUIRED_FOR_DECLARED_PERSONAL_WINDOWS_SCOPE"
+  },
+  "pwa": {
+    "serviceWorkerCache": "wild-world-companion-v10",
+    "imageRuntimeCache": "wild-world-images-v1",
+    "updateAndStateRetention": "PASS in Chrome, Edge, and managed WebKit",
+    "offlineReload": "PASS in Chrome, Edge, and managed WebKit"
+  },
+  "lighthouse": {
+    "lighthouseVersion": "13.4.1",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/152.0.0.0 Safari/537.36",
+    "scores": {
+      "performance": 97,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100
+    },
+    "pwaCategory": "not available in Lighthouse 13; install/offline behavior is covered by static and E2E checks"
+  },
+  "remainingUncertainty": [
+    "454 fields remain below the stricter public-release evidence metric",
+    "9 field instances across 6 conflict records remain unresolved",
+    "184 current entities use the honest missing-image fallback because no local image corpus was supplied",
+    "Firefox could not start in this Windows host; Safari/iOS/Android and real screen-reader runs are outside the declared personal Windows scope"
+  ],
+  "decision": "The declared single-user local/offline scope meets the PERSONAL_USE_COMPLETE gate without claiming public release readiness or complete data verification."
+}

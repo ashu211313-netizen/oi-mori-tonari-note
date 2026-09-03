@@ -1,0 +1,53 @@
+{
+  "name": "wild-world-companion-beta-hardening",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "node scripts/dev-server.mjs",
+    "test": "node --test tests/*.test.js",
+    "test:e2e": "node --test tests/e2e.mjs",
+    "test:e2e:report": "node scripts/run-e2e-target.mjs",
+    "typecheck": "tsc -p jsconfig.json",
+    "lint": "eslint .",
+    "validate:data": "node scripts/validate-data.mjs",
+    "validate:provenance": "node scripts/validate-provenance.mjs",
+    "validate:evidence-sufficiency": "node scripts/validate-evidence-sufficiency.mjs",
+    "validate:security": "node scripts/validate-security.mjs",
+    "sync:images": "node scripts/sync-image-manifest.mjs",
+    "validate:images": "node scripts/validate-image-assets.mjs",
+    "verify:public-https": "node scripts/verify-public-https.mjs",
+    "report:provenance": "node scripts/report-provenance.mjs",
+    "report:conflicts": "node scripts/report-conflicts.mjs",
+    "report:data-readiness": "node scripts/report-data-readiness.mjs",
+    "report:evidence-warroom": "node scripts/report-evidence-warroom.mjs",
+    "report:evidence-sufficiency": "node scripts/report-evidence-sufficiency.mjs",
+    "report:conflict-tribunal": "node scripts/report-conflict-tribunal.mjs",
+    "report:migration-matrix": "node scripts/report-migration-matrix.mjs",
+    "report:security-release": "node scripts/report-security-privacy-ip.mjs",
+    "report:final-gate": "node scripts/report-final-gate.mjs",
+    "report:personal-gate": "node scripts/report-personal-use-readiness.mjs",
+    "report:ultimate-gate": "node scripts/report-personal-ultimate-readiness.mjs",
+    "report:expansion": "node scripts/report-expansion.mjs",
+    "report:saturation": "node scripts/report-content-saturation.mjs",
+    "report:final-personal": "node scripts/report-personal-final-readiness.mjs",
+    "research:expansion": "node scripts/research/extract-expansion-data.mjs",
+    "validate:static": "node scripts/validate-static.mjs",
+    "build": "pnpm run sync:images && pnpm run validate:images && pnpm run validate:data && pnpm run validate:provenance && pnpm run validate:evidence-sufficiency && pnpm run validate:static && pnpm run validate:security",
+    "lighthouse": "node scripts/run-lighthouse.mjs",
+    "isolate:browser": "node scripts/run-browser-isolation.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "axe-core": "4.13.0",
+    "chrome-launcher": "1.2.1",
+    "eslint": "10.9.1",
+    "globals": "17.11.0",
+    "lighthouse": "13.4.1",
+    "playwright": "1.62.1",
+    "typescript": "7.0.2"
+  }
+}

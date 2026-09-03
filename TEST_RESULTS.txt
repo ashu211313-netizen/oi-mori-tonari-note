@@ -1,0 +1,32 @@
+Wild World Companion Content Saturation verification — 2026-09-03
+
+PASS unit/contract: 107/107
+PASS TypeScript checkJs: 0 errors
+PASS ESLint: 0 errors
+PASS Build/Data/Provenance/Evidence Sufficiency/Static/Security
+PASS core counts: fish 56 / bugs 56 / fossils 52 / art 20
+PASS expansion records: items 1271 / residents 148 / gyroids 127 / NPCs 17 / facilities 8 / events 12
+PASS expansion provenance: 1583 records / 9120 claims / 9120 field provenance instances
+PASS universal search: 1767/1767 records
+PASS acquisition: any evidence 1255 / explicit or categorical text 389 / buy-price-only 866 / UNKNOWN 16 / dangling 0 / invalid 0
+PASS images: metadata 1767 / real 0 / missing fallback 1767 / remote download 0
+PASS migration/backup: 10/10; storage key wildWorldCompanionState.v1; schema v1/v2 -> v3
+PASS Chrome 152.0.7977.75: 19/19
+PASS Edge 152.0.4191.53: 19/19
+PASS managed WebKit 26.5: 19/19; not Safari
+ENVIRONMENT_BLOCKED Firefox managed 1538: spawn UNKNOWN before app assertions
+PASS localhost PWA: SW v12 / state and unrelated cache preservation / origin-stop offline expansion/event search
+NOT RUN Safari desktop, iOS physical, Android physical, real screen readers
+OUT OF SCOPE public HTTPS and external legal review for personal use; not reported as PASS
+PASS Lighthouse 13.4.1: 95 / 100 / 100 / 100
+
+Core JP independent: 14/468 -> 14/468
+Core release blocker metric: 454 -> 454
+Core SINGLE_SOURCE/CORROBORATED/CONFLICT: 278/167/9 -> 278/167/9
+Core conflict registry: 6 -> 6
+Core canonical changes: 0
+Unresolved residents: 2
+Event records: 12
+Data Version: 2026.09.03.2
+Service Worker: v11 -> v12
+Release classification: PERSONAL_ULTIMATE_MAX_CONTENT_COMPLETE (single-user local/offline scope only)

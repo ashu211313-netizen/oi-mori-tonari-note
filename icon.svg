@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="おい森 となりノート">
+  <rect width="128" height="128" rx="30" fill="#F6F1DD"/>
+  <path d="M31 80c18 21 48 21 66 0 10-12 9-32-2-46-13 4-22 11-31 22-9-11-18-18-31-22-11 14-12 34-2 46Z" fill="#79B86F"/>
+  <circle cx="49" cy="68" r="6" fill="#62574A"/>
+  <circle cx="79" cy="68" r="6" fill="#62574A"/>
+  <path d="M53 88c7 6 15 6 22 0" fill="none" stroke="#62574A" stroke-width="7" stroke-linecap="round"/>
+</svg>

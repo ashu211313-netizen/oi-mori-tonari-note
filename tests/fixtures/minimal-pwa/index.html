@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="ja">
+<head><meta charset="utf-8"><title>Minimal PWA isolation</title></head>
+<body>
+  <h1>Minimal PWA isolation</h1>
+  <script type="module">
+    if ("serviceWorker" in navigator) await navigator.serviceWorker.register("./sw.js");
+  </script>
+</body>
+</html>
