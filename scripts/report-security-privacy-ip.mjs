@@ -104,7 +104,7 @@ const report = {
     credentialPatternHits: secretHits,
     localStorageKey: /const KEY = "([^"]+)"/.exec(storage)?.[1] ?? null,
     externalSourceLinks: sources.length,
-    note: "Static/runtime contract validation; public response headers require an authorized HTTPS deployment."
+    note: "Static/runtime contract validation. The authorized GitHub Pages endpoint is verified separately; GitHub Pages supplies HTTPS/HSTS while document CSP and referrer policy are enforced by meta tags."
   },
   dependencySecurity: dependencyAudit,
   dependencyLicenses: {

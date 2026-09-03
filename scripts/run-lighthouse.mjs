@@ -11,13 +11,18 @@ const artifacts = path.join(root, "artifacts");
 const fallbackChrome = "C:/Program Files/Google/Chrome/Application/chrome.exe";
 const chromePath = process.env.WW_BROWSER_EXECUTABLE
   || (existsSync(fallbackChrome) ? fallbackChrome : undefined);
-const server = createStaticServer(root);
+const requestedPublicUrl = process.env.WW_PUBLIC_URL?.trim();
+const publicUrl = requestedPublicUrl ? new URL(requestedPublicUrl) : null;
+if (publicUrl && publicUrl.protocol !== "https:") {
+  throw new Error("WW_PUBLIC_URL must use HTTPS");
+}
+const server = publicUrl ? null : createStaticServer(root);
 const userDataDir = mkdtempSync(path.join(tmpdir(), "ww-lighthouse-"));
 let chrome;
 let cleanupError;
 
 try {
-  const url = await listen(server);
+  const url = publicUrl?.href ?? await listen(server);
   chrome = await chromeLauncher.launch({
     chromePath,
     userDataDir,
@@ -31,20 +36,22 @@ try {
   });
   if (!result) throw new Error("Lighthouse returned no result");
   mkdirSync(artifacts, { recursive: true });
-  writeFileSync(path.join(artifacts, "lighthouse.json"), result.report);
+  const reportPrefix = publicUrl ? "lighthouse-live" : "lighthouse";
+  writeFileSync(path.join(artifacts, `${reportPrefix}.json`), result.report);
   const scores = Object.fromEntries(
     Object.entries(result.lhr.categories).map(([id, category]) => [id, Math.round((category.score ?? 0) * 100)])
   );
-  writeFileSync(path.join(artifacts, "lighthouse-summary.json"), `${JSON.stringify({
+  writeFileSync(path.join(artifacts, `${reportPrefix}-summary.json`), `${JSON.stringify({
     lighthouseVersion: result.lhr.lighthouseVersion,
     userAgent: result.lhr.userAgent,
+    target: result.lhr.finalDisplayedUrl,
     scores,
     pwaCategory: "not available in Lighthouse 13; install/offline behavior is covered by static and E2E checks"
   }, null, 2)}\n`);
   console.log(JSON.stringify(scores, null, 2));
 } finally {
   await chrome?.kill();
-  await close(server);
+  if (server) await close(server);
   try {
     rmSync(userDataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   } catch (error) {

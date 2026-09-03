@@ -111,7 +111,7 @@ for (const relative of [".env", "node_modules/", "artifacts/", "tests/", "script
   });
 }
 
-async function browserPass(label, browserType, contextOptions = {}) {
+async function browserPass(label, browserType, contextOptions = {}, verifyOffline = true) {
   const browser = await browserType.launch({
     headless: true,
     ...(browserType === chromium && chromiumExecutable ? { executablePath: chromiumExecutable } : {})
@@ -152,18 +152,18 @@ async function browserPass(label, browserType, contextOptions = {}) {
     await page.getByRole("button", { name: "コレクション", exact: true }).click();
     if (!await page.getByRole("heading", { name: "集めたものを、ひとつのノートに。" }).isVisible()) throw new Error(`${label}: collection failed`);
     await page.getByRole("button", { name: "月", exact: true }).click();
-    if (!await page.getByRole("heading", { name: /月のカレンダー/ }).isVisible()) throw new Error(`${label}: calendar failed`);
+    if (!await page.getByRole("heading", { name: "村のこよみ" }).isVisible()) throw new Error(`${label}: calendar failed`);
     await page.getByRole("button", { name: "ホーム", exact: true }).click();
     await page.getByRole("button", { name: "時計・バックアップ", exact: true }).click();
     if (!await page.getByRole("button", { name: /バックアップを書き出す/ }).isVisible()) throw new Error(`${label}: backup UI failed`);
 
     await page.evaluate(() => localStorage.setItem("wildWorldCompanionState.v1", JSON.stringify({ schemaVersion: 3, favorites: { "fish-shark": true } })));
-    await context.setOffline(true);
+    if (verifyOffline) await context.setOffline(true);
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.getByRole("heading", { name: "おい森 となりノート" }).waitFor();
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("wildWorldCompanionState.v1")));
     if (saved?.schemaVersion !== 3 || !saved?.favorites?.["fish-shark"]) throw new Error(`${label}: saved state lost`);
-    await context.setOffline(false);
+    if (verifyOffline) await context.setOffline(false);
     if (browserErrors.length) throw new Error(`${label}: ${browserErrors.join("; ")}`);
     if (criticalFailures.length) throw new Error(`${label}: ${criticalFailures.join("; ")}`);
     if (label === "chromium") {
@@ -172,14 +172,19 @@ async function browserPass(label, browserType, contextOptions = {}) {
       await page.screenshot({ path: screenshotPath, fullPage: false });
     }
     await context.close();
-    return `${label} ${await browser.version()}; HTTPS/SW/offline/search/collection/calendar/backup/storage PASS`;
+    return `${label} ${await browser.version()}; HTTPS/SW/${verifyOffline ? "offline" : "online reload"}/search/collection/calendar/backup/storage PASS`;
   } finally {
     await browser.close();
   }
 }
 
 await check("browser-chromium", () => browserPass("chromium", chromium));
-await check("browser-webkit-iphone-descriptor", () => browserPass("managed WebKit + iPhone descriptor", webkit, devices["iPhone 14"]));
+await check("browser-webkit-iphone-descriptor", () => browserPass(
+  "managed WebKit + iPhone descriptor",
+  webkit,
+  { ...devices["iPhone 14"], ignoreHTTPSErrors: true },
+  false
+));
 
 const report = {
   generatedAt: new Date().toISOString(),
@@ -194,6 +199,8 @@ const report = {
   },
   limits: [
     "Managed WebKit with an iPhone descriptor is not a physical iPhone/Safari PASS.",
+    "Managed WebKit used its toolchain TLS-trust bypass because this Windows WebKit bundle cannot read the host trust store; Node and installed Chrome validated the real HTTPS certificate without bypass.",
+    "Live offline reload was validated in installed Chrome. Managed WebKit validated the live online reload and its separate local repository-path suite validated offline behavior; live WebKit offline reload hit a tool-internal error and is not claimed as a live WebKit offline PASS.",
     "GitHub Pages does not provide repository-controlled custom response headers; executable restrictions are enforced by the document CSP meta tag.",
     "PC and iPhone browser-local state are separate; use the existing export/import flow to transfer progress."
   ]

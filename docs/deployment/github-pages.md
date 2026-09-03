@@ -1,5 +1,15 @@
 # GitHub Pages deployment
 
+## Published deployment
+
+- Repository: [ashu211313-netizen/oi-mori-tonari-note](https://github.com/ashu211313-netizen/oi-mori-tonari-note)
+- App: [https://ashu211313-netizen.github.io/oi-mori-tonari-note/](https://ashu211313-netizen.github.io/oi-mori-tonari-note/)
+- Source: GitHub Actions workflow deployment from `main`
+- Repository visibility: public
+- HTTPS enforcement: enabled
+
+The live endpoint and deployed runtime were tested after the pull request was merged. Exact evidence and the intentionally unclaimed device cases are recorded in [verification.md](verification.md).
+
 ## Architecture
 
 `pnpm run build:pages` creates a clean `dist/` artifact containing only the PWA shell, icons, Service Worker, runtime modules, generated runtime data, and registered local image assets. Source audits, tests, scripts, local QA artifacts, backups, credentials, and `node_modules` are not deployed.
