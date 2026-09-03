@@ -73,15 +73,15 @@ await check("manifest", async () => {
   return `${manifest.name}; ${response.headers.get("content-type") ?? "no content-type"}`;
 });
 
-await check("service-worker-v13", async () => {
+await check("service-worker-v14", async () => {
   const swUrl = new URL("./sw.js", rootResponse?.url ?? url);
   const response = await fetch(swUrl, { cache: "no-store" });
   const body = await response.text();
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  if (!body.includes('CACHE_NAME = "wild-world-companion-v13"')) throw new Error("v13 cache marker not found");
+  if (!body.includes('CACHE_NAME = "wild-world-companion-v14"')) throw new Error("v14 cache marker not found");
   const cacheControl = response.headers.get("cache-control") ?? "";
   if (!/(no-cache|no-store|max-age=0)/i.test(cacheControl)) throw new Error(`unsafe sw cache-control: ${cacheControl || "missing"}`);
-  return `v13; cache-control ${cacheControl}`;
+  return `v14; cache-control ${cacheControl}`;
 });
 
 await check("icons", async () => {

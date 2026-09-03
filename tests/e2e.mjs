@@ -88,7 +88,7 @@ test("localhost is a secure PWA context with manifest and the current service wo
   assert.equal(result.manifestOk, true);
   assert.match(result.manifestContentType, /application\/manifest\+json/);
   assert.match(result.scope, /^http:\/\/127\.0\.0\.1:\d+\/$/);
-  assert.ok(result.cacheNames.includes("wild-world-companion-v13"), JSON.stringify(result.cacheNames));
+  assert.ok(result.cacheNames.includes("wild-world-companion-v14"), JSON.stringify(result.cacheNames));
   assert.equal(severeLogs.length, 0, severeLogs.join("\n"));
 });
 
@@ -126,7 +126,7 @@ test("service worker update removes old app caches without touching saved state 
     };
   });
   assert.equal(result.cacheNames.includes("wild-world-companion-v9"), false);
-  assert.equal(result.cacheNames.includes("wild-world-companion-v13"), true);
+  assert.equal(result.cacheNames.includes("wild-world-companion-v14"), true);
   assert.equal(result.cacheNames.includes("another-app-v1"), true);
   assert.equal(result.savedState.caught["fish-shark"], true);
   assert.equal(result.savedState.donated["fish-shark"], true);

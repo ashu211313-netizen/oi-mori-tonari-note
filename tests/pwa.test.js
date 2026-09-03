@@ -57,7 +57,7 @@ test("service worker precache entries resolve to real files", () => {
   assert.match(sw, /src\/universal-search\.js/);
   assert.match(sw, /src\/generated\/expansion-records\.js/);
   assert.match(sw, /src\/generated\/image-assets\.js/);
-  assert.match(sw, /wild-world-companion-v13/);
+  assert.match(sw, /wild-world-companion-v14/);
   assert.match(sw, /wild-world-images-v1/);
 });
 
@@ -83,6 +83,7 @@ test("service worker activation removes only old app and image caches", async ()
         "wild-world-companion-v10",
         "wild-world-companion-v12",
         "wild-world-companion-v13",
+        "wild-world-companion-v14",
         "wild-world-images-v0",
         "wild-world-images-v1",
         "another-app-v1"
@@ -103,6 +104,7 @@ test("service worker activation removes only old app and image caches", async ()
         "wild-world-companion-v9",
         "wild-world-companion-v10",
     "wild-world-companion-v12",
+    "wild-world-companion-v13",
     "wild-world-images-v0"
   ]);
 });

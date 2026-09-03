@@ -36,6 +36,10 @@
     "report:final-personal": "node scripts/report-personal-final-readiness.mjs",
     "research:expansion": "node scripts/research/extract-expansion-data.mjs",
     "validate:static": "node scripts/validate-static.mjs",
+    "build:pages": "node scripts/build-pages.mjs",
+    "validate:pages": "node scripts/validate-pages-build.mjs",
+    "test:pages": "pnpm run build:pages && pnpm run validate:pages && node --test tests/pages-e2e.mjs",
+    "verify:live-pages": "node scripts/verify-live-pages.mjs",
     "build": "pnpm run sync:images && pnpm run validate:images && pnpm run validate:data && pnpm run validate:provenance && pnpm run validate:evidence-sufficiency && pnpm run validate:static && pnpm run validate:security",
     "lighthouse": "node scripts/run-lighthouse.mjs",
     "isolate:browser": "node scripts/run-browser-isolation.mjs"

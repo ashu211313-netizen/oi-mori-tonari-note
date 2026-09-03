@@ -1,6 +1,6 @@
 const CACHE_PREFIX = "wild-world-companion-";
 const IMAGE_CACHE_PREFIX = "wild-world-images-";
-const CACHE_NAME = "wild-world-companion-v13";
+const CACHE_NAME = "wild-world-companion-v14";
 const IMAGE_CACHE_NAME = "wild-world-images-v1";
 const CORE_ASSETS = [
   "./",
