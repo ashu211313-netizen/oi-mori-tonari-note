@@ -22,15 +22,15 @@
 
 ## Final gates
 
-- Unit: 113/113 PASS; TypeScript checkJs, ESLint, Data, Provenance, Evidence, Static, Security, Images: PASS.
+- Unit: 118/118 PASS; TypeScript checkJs, ESLint, Data, Provenance, Evidence, Static, Security, Images: PASS.
 - Chrome / Edge / managed WebKit: 22/22 PASS each. Managed WebKit is not physical Safari.
 - Lighthouse: Performance 94, Accessibility 100, Best Practices 100, SEO 100.
 - Migration/backup: 10/10 PASS; key `wildWorldCompanionState.v1`, schema 3.
-- Service Worker: `wild-world-companion-v13`; offline origin-stop, cache update, saved state preservation included in E2E.
+- Service Worker: `wild-world-companion-v14`; offline origin-stop, cache update, saved state preservation included in E2E.
 
 ## Truthful limits
 
 - Core claim coverage 468/468 is not verification. JP audited-independent verification remains 14/468; strict public blocker metric 454.
 - Core CONFLICT 9 fields / 6 registry and expansion event CONFLICT 3 remain visible. Canonical core changes: 0.
 - Residents remain 148 records plus 2 unresolved/excluded names. Real images remain 0; all 1,767 records use honest original fallback graphics.
-- Firefox is environment-blocked before app assertions. Physical Safari/iOS/Android, real screen reader and public HTTPS were not run and are not claimed.
+- Firefox is environment-blocked before app assertions. Physical Safari/iOS/Android and real screen reader were not run and are not claimed. Public GitHub Pages HTTPS was subsequently deployed and verified; see [deployment verification](docs/deployment/verification.md).

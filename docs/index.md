@@ -18,6 +18,8 @@
 
 ## QA and release
 
+- [GitHub Pages deployment](deployment/github-pages.md)
+- [Live deployment verification](deployment/verification.md)
 - [Test strategy](qa/test-strategy.md)
 - [Verification log](qa/verification-log.md)
 - [Machine-readable Personal Ultimate gate](qa/personal-ultimate-readiness.json)

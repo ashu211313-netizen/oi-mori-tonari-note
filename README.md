@@ -1,12 +1,18 @@
-# おい森 となりノート — PERSONAL_FINAL_COMPLETE
+# おい森 となりノート — GITHUB_PAGES_DEPLOYED_AND_VERIFIED
 
 Nintendo DS日本版『おいでよ どうぶつの森』向けの、単一ユーザー・端末内保存型PWAです。サカナ・ムシ・化石・名画に加え、アイテム、住民、はにわ、NPC、施設、イベントを横断検索し、出現判定、博物館記録、売値判断、取得方法、Collection、月別イベント・住民誕生日、バックアップを扱います。
 
-現在の分類は、Windows上のローカル／offline個人利用を対象とする **`PERSONAL_FINAL_COMPLETE`** です。実データ、検索・Collection・Calendar、保存、offline動作に加え、cream / leaf green / warm yellow / soft blueを基調とする独自Design Systemで全画面を最終研磨しました。一般公開、App Store、収益化、public HTTPS、外部法務レビューを完了条件には含めません。これは公開向けRelease Readyや全データ検証済みを意味しません。
+現在の配備分類は **`GITHUB_PAGES_DEPLOYED_AND_VERIFIED`** です。`PERSONAL_FINAL_COMPLETE`の実データ、検索・Collection・Calendar、保存、offline動作、Design Systemを維持したまま、public GitHub repository、PR gate、CI、GitHub Pages HTTPS、repository-path PWA、実公開URLの検証を完走しました。これはApp Store配布、外部法務レビュー、全データ検証済み、物理iPhone/Safari検証済みを意味しません。
 
 468/468 claim coverageは468/468 verifiedではありません。JP audited-independent verificationは14/468、従来の厳格な公開向けblocker指標は454、CONFLICTは9 field instances / 6 registryです。未確認値を推測で確定せず、CONFLICTはUI上でも「未解決・確認済みとして扱わない」と表示します。
 
-## 起動
+## 公開版
+
+**[おい森 となりノートを開く](https://ashu211313-netizen.github.io/oi-mori-tonari-note/)**
+
+iPhoneではSafariで公開版を開き、共有から「ホーム画面に追加」を選びます。初回取得には通信が必要ですが、その後の通常利用はPC、PowerShell、Node server、tunnel、同一LANを必要としません。保存状態は各端末のブラウザ内にあるため、PCとiPhoneの間で移す場合は既存のBackup書き出し／読み込みを使います。
+
+## ローカル開発
 
 Node.js 22以上とpnpm 11.19.0を使用します。
 
@@ -59,7 +65,7 @@ pnpm run lighthouse
 pnpm run report:ultimate-gate
 ```
 
-`test:e2e:report` は `WW_BROWSER_EXECUTABLE`、`WW_BROWSER_TYPE`、`WW_DEVICE` で対象を選べます。Chrome、Edge、managed WebKitで各22/22 PASSです。320px axe/44px/overflowと375/390/430px responsive検索も含みます。managed WebKitはSafari実機ではありません。FirefoxはこのWindows hostでアプリassertion開始前に`spawn UNKNOWN`となり、環境BLOCKEDとして残しています。
+Unitは118/118 PASSです。`test:e2e:report` は `WW_BROWSER_EXECUTABLE`、`WW_BROWSER_TYPE`、`WW_DEVICE` で対象を選べ、Chrome、Edge、managed WebKitで各22/22 PASSです。GitHub Pages相当のrepository subpath gateは5/5 PASS、実公開URLはinstalled ChromeでHTTPS／SW v14／offline／主要UI／保存保持を検証済みです。managed WebKit+iPhone descriptorは実URLのonline reloadと主要UIを検証しましたが、物理iPhone/Safari PASSではありません。FirefoxはこのWindows hostでアプリassertion開始前に`spawn UNKNOWN`となり、環境BLOCKEDとして残しています。
 
 ## 出典と再生成
 
@@ -73,6 +79,8 @@ pnpm run report:ultimate-gate
 - [Content Saturation実行報告](FINAL_CONTENT_SATURATION_REPORT.md)
 - [機械可読なUltimateゲート](docs/qa/personal-ultimate-readiness.json)
 - [検証ログ](docs/qa/verification-log.md)
+- [GitHub Pages配備](docs/deployment/github-pages.md)
+- [実公開URLの検証記録](docs/deployment/verification.md)
 - [既知の不確実性](docs/release/known-issues.md)
 - [データ採用ポリシー](docs/data/canonical-policy.md)
 - [Provenance](docs/data/provenance.md)

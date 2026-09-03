@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-09-04 — GitHub Pages deployed and verified
+
+- Public repository [ashu211313-netizen/oi-mori-tonari-note](https://github.com/ashu211313-netizen/oi-mori-tonari-note)を作成し、PR CIを通して`main`へmerge。GitHub Actions custom workflowから[恒久HTTPS URL](https://ashu211313-netizen.github.io/oi-mori-tonari-note/)へ配備。
+- clean `dist/` builder、forbidden-file/secret/root-path validator、repository subpath Chromium E2E 5/5を追加。CIはUnit 118/118、checkJs、ESLint、Build、artifact validationを通過してからPagesへdeployする。
+- iPhone用PWA metaを追加し、Service Worker v13→v14へ更新。保存key `wildWorldCompanionState.v1`、schemaVersion 3、Data Version `2026.09.03.3`、Canonical値は変更なし。
+- 実公開URLでHTTPS/HSTS、manifest、icons、SW v14、21/21 precache、公開除外、installed Chrome offline、主要UI、保存保持を確認。live Lighthouseは100/100/100/100。managed WebKit+iPhone descriptorもlive online UIを確認したが、物理iPhone/Safari、Android、real screen readerは未実行でありPASSとは表記しない。
+
 ## 2026-09-03 — Personal Final UI & Evidence Finisher
 
 - 歴史的配布本文を監査し、残存acquisition `UNKNOWN` 16→0、evidence-backed edge 1,255→1,271、explicit/categorical 389→405へ更新。16件は終了済み配布・catalog不可として実装したが、community 1 lineageのため`SINGLE_SOURCE`を維持。

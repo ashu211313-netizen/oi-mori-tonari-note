@@ -1,4 +1,4 @@
-# Human Verification Kit — Personal Final v13
+# Human Verification Kit — GitHub Pages v14
 
 このKitは、このWindows hostだけでは完了できない検証を別の監査者が再現し、機械結果と混同せず返却するためのものです。`PASS` は全必須stepと証拠が揃った場合だけ記入します。Emulation、axe、localhost、Playwright WebKitを、それぞれ実機、実screen reader、public HTTPS、Safariの代用にしません。
 
@@ -6,7 +6,7 @@
 
 1. release ZIPと同梱manifestのSHA-256を再計算し、一致を記録する。
 2. Node.js 22以上／pnpm 11.19.0で `pnpm install --frozen-lockfile`、`pnpm test`、`pnpm run typecheck`、`pnpm run lint`、`pnpm run build` を実行する。
-3. `sw.js` が `wild-world-companion-v13`、`src/data.js` がData Version `2026.09.03.3`、保存キーが `wildWorldCompanionState.v1`、schemaVersionが3であることを記録する。
+3. `sw.js` が `wild-world-companion-v14`、`src/data.js` がData Version `2026.09.03.3`、保存キーが `wildWorldCompanionState.v1`、schemaVersionが3であることを記録する。
 4. 端末、OS、browser/screen-reader版、locale/timezone、実行日時、package hashを `artifacts/qa/human-verification-result-template.json` のコピーへ記録する。
 5. 編集・切り抜き前のscreen recording、screenshot、console/network export、失敗も含む操作logを保存する。個人情報は収集前に除去する。
 
@@ -21,7 +21,7 @@
 5. サメを寄贈し、捕獲が自動成立し、reload後も両方が維持されることを確認する。
 6. `すてきなめいが` を偽物にし、寄贈不可と10ベル計算を確認する。
 7. 検索タブでアイテム・住民・はにわ・NPC・施設・イベントを各1件検索し、detail、出典、back-queryを確認する。月Calendarでイベントと住民誕生日を確認し、アイテムの入手済み/カタログ済み、はにわの収集済み、住民のお気に入りを設定してreload後も保持されることを確認する。
-8. 旧v12配布物を先にinstallしてschema v3 stateを作成し、その後v13へ更新する。v12 app cacheの除去、v13 cache、core/expansion state、無関係origin dataの保持を確認する。v1/v2 backupのv3移行は別ケースで確認する。
+8. 旧v13配布物を先にinstallしてschema v3 stateを作成し、その後v14へ更新する。v13 app cacheの除去、v14 cache、core/expansion state、無関係origin dataの保持を確認する。v1/v2 backupのv3移行は別ケースで確認する。
 9. online load後にnetworkを実際に切断し、appを終了・再起動してhome、いきもの検索、拡張domain検索が使えることを確認する。automationのoffline flagだけでは不可。
 10. 320 CSS px相当のportraitでhorizontal overflow、44px未満の操作target、safe-area重なりを確認する。
 11. install、standalone起動、update、offline、OS再起動後の再起動をscreen recordingに含める。
@@ -43,15 +43,15 @@ axeとaccessibility treeのPASSは参考添付に留め、上記の音声・focu
 
 ## Public HTTPS / PWA
 
-所有または明示認可されたdeployment targetだけを使用します。配備前に `deployment/_headers.example` をtargetの設定形式へ移し、ZIP hashとcommit相当IDを固定します。
+公開対象は [GitHub Pages](https://ashu211313-netizen.github.io/oi-mori-tonari-note/) です。別targetを使う場合も所有または明示認可されたdeploymentだけを使用し、commit相当IDを固定します。
 
-1. PowerShellで `$env:WW_PUBLIC_URL='https://...'` を設定してから `pnpm run verify:public-https` を実行し、CSP/HSTS/nosniff/referrer/permissions、manifest、SW v13、iconを検証する。
+1. PowerShellで `$env:WW_PUBLIC_URL='https://ashu211313-netizen.github.io/oi-mori-tonari-note/'` を設定してから `pnpm run verify:live-pages` を実行し、HTTPS/HSTS、document security meta、manifest、SW v14、icon、precache、公開除外を検証する。
 2. HTTP URLがHTTPSへredirectし、final URL・certificate chain・expiry・hostname一致を保存する。
 3. clean profileでinstallし、DevTools Application/Storageとnetwork HARを保存する。
-4. v12→v13 update、保存state保持、offline cold start、拡張・イベント検索、再接続後updateをSafari/iOS/Androidの実targetでも実行する。
+4. v13→v14 update、保存state保持、offline cold start、拡張・イベント検索、再接続後updateをSafari/iOS/Androidの実targetでも実行する。
 5. CDN/proxyが`sw.js`を長期cacheせず、`index.html`とunhashed assetsがrevalidationされることをresponse headerで確認する。
 
-Quick Tunnelやlocalhostだけなら`NOT_RUN`のままです。
+自動live gateはPASS済みです。ただし物理iPhone/SafariとAndroid上のinstall、offline cold start、OS再起動後の確認は、このKitに従って別resultとして実施するまで`NOT_RUN`です。
 
 ## 日本版ADMJ実機・CONFLICT
 
