@@ -49,6 +49,20 @@ jobs:
       - name: Validate Pages artifact
         run: pnpm run validate:pages
 
+      - name: Install browser engines for deployment E2E
+        run: pnpm exec playwright install --with-deps chromium webkit
+
+      - name: Run repository and iPhone deployment gates
+        run: |
+          pnpm run test:e2e
+          pnpm run test:pages
+          pnpm run test:iphone
+
+      - name: Run managed WebKit iPhone deployment gate
+        env:
+          WW_BROWSER_TYPE: webkit
+        run: pnpm run test:iphone
+
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 

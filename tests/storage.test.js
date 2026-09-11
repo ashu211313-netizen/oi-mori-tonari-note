@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   normalizeState,
   parseImportedStateText,
+  readStoredStateStrict,
   serializeState,
   validateImportedState
 } from "../src/storage.js";
@@ -166,4 +167,21 @@ test("backup format is independent from service-worker cache versions", () => {
   const exported = serializeState({ favorites: { "bug-scorpion": true } });
   assert.doesNotMatch(exported, /wild-world-companion-v\d+/);
   assert.equal(parseImportedStateText(exported).favorites["bug-scorpion"], true);
+});
+
+test("strict storage reads default only for an absent key and rejects an empty payload", () => {
+  let raw = null;
+  const originalStorage = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: { getItem: () => raw }
+  });
+  try {
+    assert.equal(readStoredStateStrict().schemaVersion, 3);
+    raw = "";
+    assert.throws(() => readStoredStateStrict(), SyntaxError);
+  } finally {
+    if (originalStorage) Object.defineProperty(globalThis, "localStorage", originalStorage);
+    else delete globalThis.localStorage;
+  }
 });

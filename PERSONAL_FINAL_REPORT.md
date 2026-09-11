@@ -1,4 +1,4 @@
-# Personal Final Report — 2026-09-03
+# Personal Final Report — 2026-09-11 local verification update
 
 ## Classification
 
@@ -22,15 +22,17 @@
 
 ## Final gates
 
-- Unit: 118/118 PASS; TypeScript checkJs, ESLint, Data, Provenance, Evidence, Static, Security, Images: PASS.
-- Chrome / Edge / managed WebKit: 22/22 PASS each. Managed WebKit is not physical Safari.
-- Lighthouse: Performance 94, Accessibility 100, Best Practices 100, SEO 100.
+- Unit: 128/128 PASS; TypeScript checkJs, ESLint, Build, Data, Provenance, Evidence, Static, Security, Images: PASS.
+- Existing browser E2E: installed Chrome 152.0.7977.83 22/22 PASS (16,708.4848ms); Edge 152.0.4191.66 22/22 PASS (16,644.6033ms); managed WebKit 26.5 22/22 PASS (32,808.9665ms). Managed WebKit is not physical Safari.
+- iPhone-focused E2E: installed Chrome 20/20 PASS (36,526.2435ms); managed WebKit 26.5 20/20 PASS (76,493.9532ms).
+- Screenshots: Chrome 27/27 PASS; managed WebKit 27/27 PASS. GitHub Pages repository-subpath gate: 5/5 PASS.
+- Lighthouse 13.4.1: Performance 91, Accessibility 100, Best Practices 100, SEO 100.
 - Migration/backup: 10/10 PASS; key `wildWorldCompanionState.v1`, schema 3.
-- Service Worker: `wild-world-companion-v14`; offline origin-stop, cache update, saved state preservation included in E2E.
+- Service Worker: `wild-world-companion-v15`; offline origin-stop and v15-page future-update contracts are included in E2E. Physical v14→v15 close/reopen migration is `NOT_RUN`; durable LocalStorage is retained by design, while the old v14 session's route/query/scroll is not guaranteed.
 
 ## Truthful limits
 
 - Core claim coverage 468/468 is not verification. JP audited-independent verification remains 14/468; strict public blocker metric 454.
 - Core CONFLICT 9 fields / 6 registry and expansion event CONFLICT 3 remain visible. Canonical core changes: 0.
 - Residents remain 148 records plus 2 unresolved/excluded names. Real images remain 0; all 1,767 records use honest original fallback graphics.
-- Firefox is environment-blocked before app assertions. Physical Safari/iOS/Android and real screen reader were not run and are not claimed. Public GitHub Pages HTTPS was subsequently deployed and verified; see [deployment verification](docs/deployment/verification.md).
+- Firefox returned `spawn UNKNOWN` before app assertions in both normal and elevated runs, so its status is `ENVIRONMENT_BLOCKED_BEFORE_APP_ASSERTIONS`, not an application-level 0/22 FAIL or PASS. Physical iPhone/Safari, Home Screen PWA, real keyboard/Japanese IME, VoiceOver, and Android are `NOT_RUN` and are not claimed. The v15 PR, merge, deployment, and live verification are also `NOT_RUN`; the published evidence remains the historical v14 deployment.

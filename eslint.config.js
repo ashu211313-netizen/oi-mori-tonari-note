@@ -30,7 +30,7 @@ export default [
     }
   },
   {
-    files: ["tests/e2e.mjs", "tests/pages-e2e.mjs", "scripts/verify-live-pages.mjs"],
+    files: ["tests/e2e.mjs", "tests/pages-e2e.mjs", "tests/iphone-e2e.mjs", "scripts/verify-live-pages.mjs", "scripts/capture-iphone-screens.mjs"],
     languageOptions: {
       globals: { ...globals.node, ...globals.browser }
     }

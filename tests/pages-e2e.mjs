@@ -98,7 +98,7 @@ test("Service Worker scope, cache, offline reload, and saved state survive on Pa
     return { scope: registration.scope, caches: await window.caches.keys() };
   });
   assert.match(online.scope, /\/oi-mori-tonari-note\/$/);
-  assert.ok(online.caches.includes("wild-world-companion-v14"), JSON.stringify(online.caches));
+  assert.ok(online.caches.includes("wild-world-companion-v15"), JSON.stringify(online.caches));
   await context.setOffline(true);
   await page.reload({ waitUntil: "domcontentloaded" });
   assert.equal(await page.getByRole("heading", { name: "おい森 となりノート" }).isVisible(), true);

@@ -73,15 +73,27 @@ await check("manifest", async () => {
   return `${manifest.name}; ${response.headers.get("content-type") ?? "no content-type"}`;
 });
 
-await check("service-worker-v14", async () => {
+await check("service-worker-v15", async () => {
   const swUrl = new URL("./sw.js", rootResponse?.url ?? url);
   const response = await fetch(swUrl, { cache: "no-store" });
   const body = await response.text();
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  if (!body.includes('CACHE_NAME = "wild-world-companion-v14"')) throw new Error("v14 cache marker not found");
+  if (!body.includes('CACHE_NAME = "wild-world-companion-v15"')) throw new Error("v15 cache marker not found");
+  if (!/const NAVIGATION_SHELL\s*=\s*new URL\("\.\/index\.html",\s*self\.location\.href\)\.href/.test(body)) {
+    throw new Error("scope-relative canonical navigation shell not found");
+  }
+  if (!/const CORE_ASSETS\s*=\s*\[[\s\S]*?\bNAVIGATION_SHELL\b/.test(body)) {
+    throw new Error("canonical navigation shell is not precached");
+  }
+  if (!/event\.request\.mode === "navigate"[\s\S]*?caches\.open\(CACHE_NAME\)[\s\S]*?cache\.match\(NAVIGATION_SHELL\)/.test(body)) {
+    throw new Error("navigation does not read the canonical shell from the current app cache");
+  }
+  if (/caches\.match\(\s*["']\.\/index\.html["']\s*\)/.test(body)) {
+    throw new Error("legacy relative global-cache navigation lookup is still present");
+  }
   const cacheControl = response.headers.get("cache-control") ?? "";
   if (!/(no-cache|no-store|max-age=0)/i.test(cacheControl)) throw new Error(`unsafe sw cache-control: ${cacheControl || "missing"}`);
-  return `v14; cache-control ${cacheControl}`;
+  return `v15 canonical navigation shell; cache-control ${cacheControl}`;
 });
 
 await check("icons", async () => {

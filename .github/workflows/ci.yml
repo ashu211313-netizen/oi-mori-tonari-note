@@ -48,8 +48,43 @@ jobs:
       - name: Validate Pages artifact
         run: pnpm run validate:pages
 
-      - name: Install Chromium for repository-path E2E
-        run: pnpm exec playwright install --with-deps chromium
+      - name: Install browser engines for repository-path E2E
+        run: pnpm exec playwright install --with-deps chromium webkit
+
+      - name: Full browser E2E
+        run: pnpm run test:e2e
+
+      - name: iPhone-first browser E2E
+        run: pnpm run test:iphone
+
+      - name: iPhone-first managed WebKit E2E
+        env:
+          WW_BROWSER_TYPE: webkit
+        run: pnpm run test:iphone
 
       - name: GitHub Pages subpath E2E
         run: pnpm run test:pages
+
+      - name: Capture iPhone QA screenshots
+        env:
+          WW_SCREENSHOT_BROWSER: chromium
+        run: pnpm run capture:iphone
+
+      - name: Upload iPhone QA screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: iphone-first-screenshots-chromium
+          path: artifacts/qa/iphone-first
+          retention-days: 14
+
+      - name: Capture managed WebKit iPhone QA screenshots
+        env:
+          WW_SCREENSHOT_BROWSER: webkit
+        run: pnpm run capture:iphone
+
+      - name: Upload managed WebKit iPhone QA screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: iphone-first-screenshots-webkit
+          path: artifacts/qa/iphone-first
+          retention-days: 14
