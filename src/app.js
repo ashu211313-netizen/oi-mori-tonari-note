@@ -12,6 +12,7 @@ import {
 } from "./data.js";
 import { getSmartRecommendations } from "./recommendations.js";
 import { getEffectiveSellPrice } from "./pricing.js";
+import { createResumeCoordinator } from "./lifecycle.js";
 import { getEvidenceNoticeModel, matchesQuery, sanitizeCritterFilters } from "./ui-logic.js";
 import {
   formatDateTime,
@@ -30,8 +31,13 @@ import {
   importStateFile,
   loadState,
   MAX_CALCULATOR_QUANTITY,
+  mutateStoredState,
   normalizeQuantity,
-  saveState
+  parseImportedStateText,
+  readStoredStateStrict,
+  replaceStoredState,
+  STORAGE_KEY,
+  withStateStorageLock
 } from "./storage.js";
 
 const app = /** @type {HTMLElement} */ (document.querySelector("#app"));
@@ -50,6 +56,7 @@ let collectionType = "item";
 let collectionFilter = "all";
 let collectionCategory = "all";
 let detailReturnRoute = "search";
+let detailReturnAnchor = null;
 let recentSearches = [];
 let noticeMessage = "";
 let noticeTone = "success";
@@ -57,6 +64,36 @@ let selectedEntityId = null;
 let expansionReady = false;
 let expansionLoadError = null;
 let expansionLoadPromise = null;
+const routeScrollPositions = new Map();
+const observedServiceWorkers = new WeakSet();
+const SW_RELOAD_GUARD_KEY = "wildWorldCompanion.swReloadAt";
+const EXPANSION_RELOAD_GUARD_KEY = "wildWorldCompanion.expansionReloadAt";
+const UI_SESSION_KEY = "wildWorldCompanion.uiSession.v1";
+const SERVICE_WORKER_CHECK_INTERVAL_MS = 60_000;
+let serviceWorkerControllerSeen = "serviceWorker" in navigator && Boolean(navigator.serviceWorker.controller);
+let composingInputName = null;
+let skipCommittedInputName = null;
+let pendingRender = false;
+let connectionOnline = navigator.onLine;
+let updateAvailable = false;
+let recoveryInProgress = false;
+let recoveryCount = 0;
+let lastRecoveryReasons = [];
+let renderCount = 0;
+let lastExportAt = 0;
+let lastServiceWorkerCheck = 0;
+/** @type {{ route: string, top: number, anchor: { id: string, top: number } | null } | null} */
+let pendingUiScrollRestore = null;
+/** @type {ReturnType<typeof setTimeout> | null} */
+let clockTimer = null;
+/** @type {Promise<ServiceWorkerRegistration | null> | null} */
+let serviceWorkerRegistrationPromise = null;
+/** @type {Promise<void> | null} */
+let serviceWorkerUpdatePromise = null;
+/** @type {Promise<void> | null} */
+let importInFlight = null;
+/** @type {Promise<void>} */
+let stateWriteTail = Promise.resolve();
 /** @type {readonly any[]} */
 let expansionSources = [];
 /** @type {readonly any[]} */
@@ -93,7 +130,6 @@ const currentDate = () => getGameDate(state);
 const availabilityContext = () => ({ weather: state.weather });
 const isDonated = (entity) => Boolean(state.donated[entity.id]);
 const isCaught = (entity) => Boolean(state.caught[entity.id] || state.acquired[entity.id]);
-const save = () => saveState(state);
 const provenanceCoverage = getProvenanceCoverage();
 let allSources = [...sources];
 const typeLabels = {
@@ -101,9 +137,152 @@ const typeLabels = {
   resident: "住民", gyroid: "はにわ", npc: "NPC", facility: "施設", event: "イベント"
 };
 
+function getSessionNumber(key) {
+  try {
+    return Number(sessionStorage.getItem(key) ?? 0);
+  } catch {
+    return 0;
+  }
+}
+
+function setSessionValue(key, value) {
+  try {
+    sessionStorage.setItem(key, value);
+  } catch {
+    // Private browsing and full storage must not prevent the app from running.
+  }
+}
+
+function persistUiSession() {
+  const pendingViewport = pendingUiScrollRestore?.route === route ? pendingUiScrollRestore : null;
+  const viewportAnchor = pendingViewport?.anchor ?? captureViewportAnchor();
+  const snapshot = {
+    route,
+    critterType,
+    query,
+    activeFilters: [...activeFilters],
+    calculatorQuery,
+    museumType,
+    calendarMonth,
+    universalQuery,
+    universalType,
+    collectionQuery,
+    collectionType,
+    collectionFilter,
+    collectionCategory,
+    detailReturnRoute,
+    detailReturnAnchor,
+    recentSearches,
+    selectedEntityId,
+    scrollY: pendingViewport?.top ?? window.scrollY,
+    viewportAnchor,
+    routeScrollPositions: Object.fromEntries(routeScrollPositions)
+  };
+  setSessionValue(UI_SESSION_KEY, JSON.stringify(snapshot));
+}
+
+function restoreUiSession() {
+  let snapshot;
+  try {
+    const raw = sessionStorage.getItem(UI_SESSION_KEY);
+    sessionStorage.removeItem(UI_SESSION_KEY);
+    if (!raw) return { top: 0, anchor: null };
+    snapshot = JSON.parse(raw);
+  } catch {
+    return { top: 0, anchor: null };
+  }
+  if (!snapshot || typeof snapshot !== "object") return { top: 0, anchor: null };
+  const allowedRoutes = new Set(["home", "search", "collection", "detail", "critters", "museum", "sell", "calendar", "more"]);
+  if (allowedRoutes.has(snapshot.route)) route = snapshot.route;
+  if (["fish", "bug"].includes(snapshot.critterType)) critterType = snapshot.critterType;
+  if (typeof snapshot.query === "string") query = snapshot.query;
+  if (Array.isArray(snapshot.activeFilters)) activeFilters = new Set(snapshot.activeFilters.filter((value) => typeof value === "string"));
+  if (typeof snapshot.calculatorQuery === "string") calculatorQuery = snapshot.calculatorQuery;
+  if (snapshot.museumType === null || typeof snapshot.museumType === "string") museumType = snapshot.museumType;
+  if (snapshot.calendarMonth === null || Number.isInteger(snapshot.calendarMonth)) calendarMonth = snapshot.calendarMonth;
+  if (typeof snapshot.universalQuery === "string") universalQuery = snapshot.universalQuery;
+  if (typeof snapshot.universalType === "string") universalType = snapshot.universalType;
+  if (typeof snapshot.collectionQuery === "string") collectionQuery = snapshot.collectionQuery;
+  if (typeof snapshot.collectionType === "string") collectionType = snapshot.collectionType;
+  if (typeof snapshot.collectionFilter === "string") collectionFilter = snapshot.collectionFilter;
+  if (typeof snapshot.collectionCategory === "string") collectionCategory = snapshot.collectionCategory;
+  if (allowedRoutes.has(snapshot.detailReturnRoute)) detailReturnRoute = snapshot.detailReturnRoute;
+  if (snapshot.detailReturnAnchor && typeof snapshot.detailReturnAnchor.id === "string" && Number.isFinite(snapshot.detailReturnAnchor.top)) {
+    detailReturnAnchor = { id: snapshot.detailReturnAnchor.id, top: snapshot.detailReturnAnchor.top };
+  }
+  if (Array.isArray(snapshot.recentSearches)) recentSearches = snapshot.recentSearches.filter((value) => typeof value === "string").slice(0, 5);
+  if (snapshot.selectedEntityId === null || typeof snapshot.selectedEntityId === "string") selectedEntityId = snapshot.selectedEntityId;
+  if (snapshot.routeScrollPositions && typeof snapshot.routeScrollPositions === "object") {
+    for (const [key, value] of Object.entries(snapshot.routeScrollPositions)) {
+      if (allowedRoutes.has(key) && Number.isFinite(value)) routeScrollPositions.set(key, Math.max(0, value));
+    }
+  }
+  const viewportAnchor = snapshot.viewportAnchor
+    && typeof snapshot.viewportAnchor.id === "string"
+    && Number.isFinite(snapshot.viewportAnchor.top)
+    ? { id: snapshot.viewportAnchor.id, top: snapshot.viewportAnchor.top }
+    : null;
+  return {
+    top: Number.isFinite(snapshot.scrollY) ? Math.max(0, snapshot.scrollY) : 0,
+    anchor: viewportAnchor
+  };
+}
+
+function captureViewportAnchor() {
+  const anchors = [...app.querySelectorAll("main article[data-id]")]
+    .filter((element) => element instanceof HTMLElement)
+    .map((element) => ({ element, rect: element.getBoundingClientRect() }))
+    .filter(({ rect }) => rect.bottom > 0 && rect.top < window.innerHeight)
+    .sort((a, b) => a.rect.top - b.rect.top);
+  const first = anchors[0];
+  return first?.element.dataset.id
+    ? { id: first.element.dataset.id, top: first.rect.top }
+    : null;
+}
+
+function routeNeedsExpansionData(targetRoute) {
+  return ["home", "search", "collection", "detail", "calendar", "more"].includes(targetRoute);
+}
+
+function restorePendingUiScroll() {
+  if (!pendingUiScrollRestore) return;
+  if (pendingUiScrollRestore.route !== route) {
+    pendingUiScrollRestore = null;
+    return;
+  }
+  const pending = pendingUiScrollRestore;
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (pendingUiScrollRestore !== pending || route !== pending.route) return;
+    const anchor = pending.anchor
+      ? app.querySelector(`main article[data-id="${CSS.escape(pending.anchor.id)}"]`)
+      : null;
+    if (anchor instanceof HTMLElement) {
+      window.scrollBy({ top: anchor.getBoundingClientRect().top - pending.anchor.top, behavior: "auto" });
+    } else {
+      window.scrollTo({ top: pending.top, behavior: "auto" });
+    }
+    pendingUiScrollRestore = null;
+  }));
+}
+
+function reloadForExpansionRecovery() {
+  if (!navigator.onLine) {
+    setNotice("オフラインです。接続が戻ると追加データを安全に再読み込みします。", "error");
+    return;
+  }
+  const previousReload = getSessionNumber(EXPANSION_RELOAD_GUARD_KEY);
+  if (Date.now() - previousReload < 60_000) {
+    setNotice("追加データをまだ読み込めません。接続を確認して、少し待ってから再度お試しください。", "error");
+    return;
+  }
+  persistUiSession();
+  setSessionValue(EXPANSION_RELOAD_GUARD_KEY, String(Date.now()));
+  window.location.reload();
+}
+
 function expansionFallback(title = "追加データを準備しています") {
   if (!expansionLoadError) return `<div class="empty-state"><span class="loading-dot" aria-hidden="true"></span><strong>${escapeHtml(title)}</strong><p>少しだけお待ちください。</p></div>`;
-  return `<div class="empty-state is-error"><span aria-hidden="true">!</span><strong>追加データを読み込めませんでした</strong><p>通信は不要です。ページを再読み込みするか、もう一度お試しください。</p><button class="primary-button" data-action="retryExpansion">もう一度読み込む</button></div>`;
+  return `<div class="empty-state is-error"><span aria-hidden="true">!</span><strong>追加データを読み込めませんでした</strong><p>現在の画面と収集記録を保持したまま、安全に再読み込みします。</p><button class="primary-button" data-action="retryExpansion">再読み込みして復旧</button></div>`;
 }
 
 function requestExpansionData() {
@@ -127,33 +306,130 @@ function requestExpansionData() {
       residentBirthdaysForMonth = calendar.residentBirthdaysForMonth;
       allSources = [...sources, ...expansionSources];
       expansionReady = true;
-      if (["home", "search", "collection", "detail", "calendar", "more"].includes(route)) render();
+      expansionLoadError = null;
+      if (routeNeedsExpansionData(route)) {
+        render();
+        restorePendingUiScroll();
+      }
     })
     .catch((error) => {
       expansionLoadError = String(error?.message ?? error);
+      expansionLoadPromise = null;
       if (["home", "search", "collection", "detail", "calendar", "more"].includes(route)) render();
     });
   return expansionLoadPromise;
 }
 
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js").catch((error) => {
-    console.warn("Service Worker registration failed; offline mode is unavailable.", error);
+function markUpdateAvailable() {
+  if (updateAvailable) return;
+  updateAvailable = true;
+  if (!recoveryInProgress) renderPreservingViewport();
+}
+
+/** @param {ServiceWorker | null} worker */
+function observeServiceWorker(worker) {
+  if (!worker || observedServiceWorkers.has(worker)) return;
+  observedServiceWorkers.add(worker);
+  worker.addEventListener("statechange", () => {
+    if (worker.state === "installed" && navigator.serviceWorker.controller) markUpdateAvailable();
   });
 }
 
-function setRoute(next) {
+async function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return null;
+  if (serviceWorkerRegistrationPromise) return serviceWorkerRegistrationPromise;
+  serviceWorkerRegistrationPromise = navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" })
+    .then((registration) => {
+      observeServiceWorker(registration.installing);
+      registration.addEventListener("updatefound", () => observeServiceWorker(registration.installing));
+      if (registration.waiting && navigator.serviceWorker.controller) markUpdateAvailable();
+      return registration;
+    })
+    .catch((error) => {
+      serviceWorkerRegistrationPromise = null;
+      console.warn("Service Worker registration failed; offline mode is unavailable.", error);
+      return null;
+    });
+  return serviceWorkerRegistrationPromise;
+}
+
+async function checkForServiceWorkerUpdate(force = false) {
+  if (!connectionOnline || !("serviceWorker" in navigator)) return;
+  if (serviceWorkerUpdatePromise) return serviceWorkerUpdatePromise;
+  if (!force && Date.now() - lastServiceWorkerCheck < SERVICE_WORKER_CHECK_INTERVAL_MS) return;
+  lastServiceWorkerCheck = Date.now();
+  serviceWorkerUpdatePromise = (async () => {
+    const registration = await registerServiceWorker();
+    if (!registration) return;
+    await Promise.race([
+      registration.update(),
+      new Promise((resolve) => setTimeout(resolve, 5_000))
+    ]);
+    observeServiceWorker(registration.installing);
+    if (registration.waiting && navigator.serviceWorker.controller) markUpdateAvailable();
+  })().catch((error) => {
+    console.warn("Service Worker update check failed; the current offline app remains available.", error);
+  }).finally(() => {
+    serviceWorkerUpdatePromise = null;
+  });
+  return serviceWorkerUpdatePromise;
+}
+
+async function applyServiceWorkerUpdate() {
+  const registration = await registerServiceWorker();
+  if (!registration) return;
+  if (!registration.waiting) await checkForServiceWorkerUpdate(true);
+  if (!registration.waiting) {
+    setNotice("最新版はすでに適用されています。");
+    return;
+  }
+  updateAvailable = false;
+  registration.waiting.postMessage({ type: "SKIP_WAITING" });
+}
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!serviceWorkerControllerSeen) {
+      serviceWorkerControllerSeen = true;
+      return;
+    }
+    const previousReload = getSessionNumber(SW_RELOAD_GUARD_KEY);
+    if (Date.now() - previousReload < 10_000) return;
+    persistUiSession();
+    setSessionValue(SW_RELOAD_GUARD_KEY, String(Date.now()));
+    window.location.reload();
+  });
+}
+
+/** @param {string} next @param {{ restoreScroll?: boolean, restoreAnchor?: boolean }} [options] */
+function setRoute(next, options = {}) {
+  const active = document.activeElement;
+  if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement || active instanceof HTMLSelectElement) {
+    active.blur();
+    updateVisualViewport();
+  }
+  pendingUiScrollRestore = null;
+  routeScrollPositions.set(route, window.scrollY);
   route = next;
   if (["home", "search", "collection", "detail", "calendar", "more"].includes(next)) void requestExpansionData();
-  const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-  window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
   render();
+  const top = options.restoreScroll ? routeScrollPositions.get(next) ?? 0 : 0;
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    window.scrollTo({ top, behavior: "auto" });
+    if (options.restoreAnchor && detailReturnAnchor) {
+      const anchor = app.querySelector(`[data-id="${CSS.escape(detailReturnAnchor.id)}"]`);
+      if (anchor instanceof HTMLElement) {
+        window.scrollBy({ top: anchor.getBoundingClientRect().top - detailReturnAnchor.top, behavior: "auto" });
+      }
+      detailReturnAnchor = null;
+    }
+  }));
 }
 
 function setNotice(message, tone = "success") {
   noticeMessage = message;
   noticeTone = tone;
-  render();
+  renderPreservingViewport();
 }
 
 function rememberSearch(value) {
@@ -162,11 +438,26 @@ function rememberSearch(value) {
   recentSearches = [normalized, ...recentSearches.filter((entry) => entry !== normalized)].slice(0, 5);
 }
 
-function updateState(mutator) {
-  state = { ...state };
-  mutator(state);
-  save();
-  render();
+/** @param {(draft: any) => void} mutator @param {{ renderAfter?: boolean }} [options] */
+function updateState(mutator, options = {}) {
+  return enqueueStateWrite(async () => {
+    try {
+      state = await mutateStoredState(mutator);
+      if (options.renderAfter !== false) render();
+      return true;
+    } catch (error) {
+      console.warn("Local state could not be saved; the previous state remains active.", error);
+      setNotice("端末への保存に失敗しました。空き容量を確認し、バックアップを書き出してください。", "error");
+      return false;
+    }
+  });
+}
+
+/** @template T @param {() => Promise<T>} operation @returns {Promise<T>} */
+function enqueueStateWrite(operation) {
+  const queued = stateWriteTail.then(operation, operation);
+  stateWriteTail = queued.then(() => undefined, () => undefined);
+  return queued;
 }
 
 function applyCritterFilters(items) {
@@ -474,7 +765,7 @@ function renderHome() {
       </section>
       <form class="home-search" data-form="homeSearch" role="search">
         <span class="search-mark" aria-hidden="true">⌕</span>
-        <label><span class="sr-only">すべてのデータを検索</span><input value="${escapeHtml(universalQuery)}" data-input="homeUniversalQuery" placeholder="サカナ、住民、家具、イベントを検索" autocomplete="off" /></label>
+        <label><span class="sr-only">すべてのデータを検索</span><input type="search" value="${escapeHtml(universalQuery)}" data-input="homeUniversalQuery" placeholder="サカナ、住民、家具、イベントを検索" autocomplete="off" enterkeyhint="search" /></label>
         <button type="submit">探す</button>
       </form>
       <section class="quick-grid" aria-label="よく使う機能">
@@ -555,7 +846,7 @@ function renderCritters() {
       </div>
       <label class="search">
         <span>検索</span>
-        <input value="${escapeHtml(query)}" data-input="query" placeholder="サメ、たい、海、5000 など" />
+        <input type="search" value="${escapeHtml(query)}" data-input="query" placeholder="サメ、たい、海、5000 など" enterkeyhint="search" />
       </label>
       <div class="filter-row">
         ${filterButtons.map((key) => `<button class="chip ${activeFilters.has(key) ? "on" : ""}" aria-pressed="${activeFilters.has(key)}" data-filter="${key}">${labels[key] ?? key}</button>`).join("")}
@@ -577,12 +868,12 @@ function renderSellCheck() {
       </section>
       <label class="search">
         <span>検索</span>
-        <input value="${escapeHtml(query)}" data-input="query" placeholder="ティラノ、サメ、カブト、490 など" autofocus />
+        <input type="search" value="${escapeHtml(query)}" data-input="query" placeholder="ティラノ、サメ、カブト、490 など" enterkeyhint="search" />
       </label>
       <div class="card-list">${matches.map((entity) => entityCard(entity)).join("")}</div>
       <section class="calculator">
         <div class="section-title"><h2>ベル計算機</h2></div>
-        <label class="search"><span>追加</span><input value="${escapeHtml(calculatorQuery)}" data-input="calculatorQuery" placeholder="アジ、タイ、サメ..." /></label>
+        <label class="search"><span>追加</span><input type="search" value="${escapeHtml(calculatorQuery)}" data-input="calculatorQuery" placeholder="アジ、タイ、サメ..." enterkeyhint="search" /></label>
         <div class="suggestions">
           ${allEntities.filter((entity) => matchesQuery(entity, calculatorQuery)).slice(0, 8).map((entity) => `<button data-action="addCalc" data-id="${entity.id}">${entity.japaneseName} ${yen(getEffectiveSellPrice(entity, state))}</button>`).join("")}
         </div>
@@ -594,18 +885,18 @@ function renderSellCheck() {
 
 function renderCalculator() {
   const rows = state.calculator
-    .map((row) => ({ ...row, entity: allEntities.find((entity) => entity.id === row.id) }))
+    .map((row, stateIndex) => ({ ...row, stateIndex, entity: allEntities.find((entity) => entity.id === row.id) }))
     .filter((row) => row.entity);
   const total = rows.reduce((sum, row) => sum + getEffectiveSellPrice(row.entity, state) * row.quantity, 0);
   const hasUndonated = rows.some((row) => !isDonated(row.entity));
   return `
     <div class="calc-list">
-      ${rows.length ? rows.map((row, index) => `
+      ${rows.length ? rows.map((row) => `
         <div class="calc-row">
           <span>${row.entity.japaneseName}</span>
-          <input type="number" min="1" max="${MAX_CALCULATOR_QUANTITY}" aria-label="${row.entity.japaneseName}の数量" value="${row.quantity}" data-action="calcQty" data-index="${index}" />
+          <input type="number" min="1" max="${MAX_CALCULATOR_QUANTITY}" aria-label="${row.entity.japaneseName}の数量" value="${row.quantity}" data-action="calcQty" data-index="${row.stateIndex}" />
           <strong>${yen(getEffectiveSellPrice(row.entity, state) * row.quantity)}</strong>
-          <button data-action="removeCalc" data-index="${index}">削除</button>
+          <button data-action="removeCalc" data-index="${row.stateIndex}">削除</button>
         </div>
       `).join("") : `<p class="empty">売りたいものを追加すると合計を出せます。</p>`}
       <div class="calc-total">
@@ -724,10 +1015,13 @@ function renderUniversalSearch() {
         <p>名前だけでなく、場所・月・入手方法・性格・イベント内容からも探せます。</p></div>
         <span class="intro-motif" aria-hidden="true">${fallbackMark("resident")}</span>
       </section>
-      <label class="search search-prominent">
-        <span>すべてのデータを検索</span>
-        <input value="${escapeHtml(universalQuery)}" data-input="universalQuery" placeholder="つねきち、アジア、9月28日、はにわ…" autocomplete="off" autofocus />
-      </label>
+      <div class="search search-prominent">
+        <label for="universal-search">すべてのデータを検索</label>
+        <div class="search-control">
+          <input id="universal-search" type="search" value="${escapeHtml(universalQuery)}" data-input="universalQuery" placeholder="つねきち、アジア、9月28日、はにわ…" autocomplete="off" enterkeyhint="search" />
+          ${universalQuery ? `<button class="search-clear" data-action="clearTextInput" data-target="universalQuery" aria-label="検索語を消去">×</button>` : ""}
+        </div>
+      </div>
       <div class="filter-row" aria-label="検索対象">
         ${filters.map((type) => `<button class="chip ${universalType === type ? "on" : ""}" aria-pressed="${universalType === type}" data-action="setSearchType" data-type="${type}">${type === "all" ? "すべて" : typeLabels[type]}</button>`).join("")}
       </div>
@@ -805,7 +1099,7 @@ function renderCollection() {
       ${collectionProgressCard("はにわ", collectedGyroids, gyroidList.length, "domain-gyroid")}
       ${collectionProgressCard("お気に入り", favorites, allSearchableEntities.length, "domain-resident")}
     </section>
-    <label class="search search-prominent"><span>コレクション内を検索</span><input value="${escapeHtml(collectionQuery)}" data-input="collectionQuery" placeholder="名前・カテゴリ・入手方法" autocomplete="off" /></label>
+    <div class="search search-prominent"><label for="collection-search">コレクション内を検索</label><div class="search-control"><input id="collection-search" type="search" value="${escapeHtml(collectionQuery)}" data-input="collectionQuery" placeholder="名前・カテゴリ・入手方法" autocomplete="off" enterkeyhint="search" />${collectionQuery ? `<button class="search-clear" data-action="clearTextInput" data-target="collectionQuery" aria-label="コレクション検索語を消去">×</button>` : ""}</div></div>
     <div class="filter-row domain-filters" aria-label="種類">
       ${typeOptions.map((type) => `<button class="chip ${collectionType === type ? "on" : ""}" aria-pressed="${collectionType === type}" data-action="setCollectionType" data-type="${type}">${type === "all" ? "すべて" : typeLabels[type]}</button>`).join("")}
     </div>
@@ -967,7 +1261,23 @@ function renderNav() {
     ["calendar", "月", "□"]
   ];
   const activeRoute = route === "detail" ? detailReturnRoute : route;
+  if (activeRoute === "collection") tabs[4] = ["collection", "収集", "✓"];
+  if (activeRoute === "more") tabs[5] = ["more", "設定", "⚙"];
   return `<nav class="bottom-nav" aria-label="主要メニュー">${tabs.map(([id, label, icon]) => `<button class="${activeRoute === id ? "active" : ""}" ${activeRoute === id ? 'aria-current="page"' : ""} data-route="${id}"><span aria-hidden="true">${icon}</span><small>${label}</small></button>`).join("")}</nav>`;
+}
+
+function renderStatusStack() {
+  const messages = [];
+  if (!connectionOnline) {
+    messages.push('<div class="app-notice is-offline" role="status"><span>オフラインです。保存済みデータと収集記録はそのまま使えます。</span></div>');
+  }
+  if (updateAvailable) {
+    messages.push('<div class="app-notice is-update" role="status"><span>新しい版を利用できます。</span><button class="notice-action" data-action="applyUpdate">更新する</button></div>');
+  }
+  if (noticeMessage) {
+    messages.push(`<div class="app-notice is-${noticeTone}" role="status"><span>${escapeHtml(noticeMessage)}</span><button data-action="dismissNotice" aria-label="お知らせを閉じる">×</button></div>`);
+  }
+  return messages.length ? `<aside class="status-stack" aria-live="polite">${messages.join("")}</aside>` : "";
 }
 
 function captureInputFocus() {
@@ -996,6 +1306,11 @@ function restoreInputFocus(snapshot) {
 }
 
 function render() {
+  if (composingInputName) {
+    pendingRender = true;
+    return;
+  }
+  pendingRender = false;
   const focusSnapshot = captureInputFocus();
   const page = {
     home: renderHome,
@@ -1008,9 +1323,56 @@ function render() {
     calendar: renderCalendar,
     more: renderMore
   }[route]();
+  renderCount += 1;
   app.dataset.route = route;
-  app.innerHTML = `${renderHeader()}${noticeMessage ? `<div class="app-notice is-${noticeTone}" role="status"><span>${escapeHtml(noticeMessage)}</span><button data-action="dismissNotice" aria-label="お知らせを閉じる">×</button></div>` : ""}${page}${renderNav()}`;
+  app.dataset.online = String(connectionOnline);
+  app.dataset.expansionReady = String(expansionReady);
+  app.dataset.updateAvailable = String(updateAvailable);
+  app.dataset.recoveryCount = String(recoveryCount);
+  app.dataset.lastRecoveryReasons = lastRecoveryReasons.join(",");
+  app.dataset.renderCount = String(renderCount);
+  app.innerHTML = `${renderHeader()}${renderStatusStack()}${page}${renderNav()}`;
   restoreInputFocus(focusSnapshot);
+}
+
+function renderPreservingViewport() {
+  const left = window.scrollX;
+  const top = window.scrollY;
+  const viewportAnchor = top > 1 ? captureViewportAnchor() : null;
+  const previousMain = app.querySelector("main");
+  const previousMainTop = previousMain instanceof HTMLElement
+    ? previousMain.getBoundingClientRect().top + top
+    : null;
+  render();
+  const nextMain = app.querySelector("main");
+  const nextMainTop = nextMain instanceof HTMLElement
+    ? nextMain.getBoundingClientRect().top + window.scrollY
+    : null;
+  const adjustedTop = top > 1 && previousMainTop !== null && nextMainTop !== null
+    ? Math.max(0, top + nextMainTop - previousMainTop)
+    : top;
+  const preservingRenderCount = renderCount;
+  const restoreViewport = () => {
+    if (renderCount !== preservingRenderCount) return;
+    const anchor = viewportAnchor
+      ? app.querySelector(`main article[data-id="${CSS.escape(viewportAnchor.id)}"]`)
+      : null;
+    if (anchor instanceof HTMLElement) {
+      window.scrollBy({
+        left: left - window.scrollX,
+        top: anchor.getBoundingClientRect().top - viewportAnchor.top,
+        behavior: "auto"
+      });
+      return;
+    }
+    window.scrollTo({ left, top: adjustedTop, behavior: "auto" });
+  };
+  restoreViewport();
+  const restoredScrollY = window.scrollY;
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (Math.abs(window.scrollY - restoredScrollY) > 2) return;
+    restoreViewport();
+  }));
 }
 
 function escapeHtml(value) {
@@ -1023,6 +1385,32 @@ function escapeHtml(value) {
   })[char]);
 }
 
+/** @param {HTMLInputElement} input */
+function applyTextInputValue(input) {
+  const inputName = input.dataset.input;
+  if (inputName === "query") {
+    query = input.value;
+    return true;
+  }
+  if (inputName === "universalQuery") {
+    universalQuery = input.value;
+    return true;
+  }
+  if (inputName === "homeUniversalQuery") {
+    universalQuery = input.value;
+    return false;
+  }
+  if (inputName === "collectionQuery") {
+    collectionQuery = input.value;
+    return true;
+  }
+  if (inputName === "calculatorQuery") {
+    calculatorQuery = input.value;
+    return true;
+  }
+  return false;
+}
+
 app.addEventListener("click", (event) => {
   const target = event.target instanceof Element ? event.target : null;
   const button = target?.closest("button");
@@ -1030,22 +1418,36 @@ app.addEventListener("click", (event) => {
   if (button.dataset.route) setRoute(button.dataset.route);
   if (button.dataset.action === "openDetail") {
     detailReturnRoute = route === "detail" ? detailReturnRoute : route;
-    if (route === "search") rememberSearch(universalQuery);
-    if (route === "collection") rememberSearch(collectionQuery);
+    const returnCard = button.closest("article[data-id]");
+    detailReturnAnchor = returnCard instanceof HTMLElement && returnCard.dataset.id
+      ? { id: returnCard.dataset.id, top: returnCard.getBoundingClientRect().top }
+      : null;
     selectedEntityId = button.dataset.id;
     setRoute("detail");
   }
-  if (button.dataset.action === "backToSearch") setRoute("search");
-  if (button.dataset.action === "backFromDetail") setRoute(detailReturnRoute);
+  if (button.dataset.action === "backToSearch") setRoute("search", { restoreScroll: true });
+  if (button.dataset.action === "backFromDetail") setRoute(detailReturnRoute, { restoreScroll: true, restoreAnchor: true });
   if (button.dataset.action === "dismissNotice") {
     noticeMessage = "";
-    render();
+    renderPreservingViewport();
   }
   if (button.dataset.action === "retryExpansion") {
-    expansionLoadError = null;
-    expansionLoadPromise = null;
-    void requestExpansionData();
+    reloadForExpansionRecovery();
+  }
+  if (button.dataset.action === "applyUpdate") {
+    void applyServiceWorkerUpdate();
+  }
+  if (button.dataset.action === "clearTextInput") {
+    const targetName = button.dataset.target;
+    if (targetName === "universalQuery") universalQuery = "";
+    if (targetName === "collectionQuery") collectionQuery = "";
+    if (targetName === "query") query = "";
+    if (targetName === "calculatorQuery") calculatorQuery = "";
     render();
+    requestAnimationFrame(() => {
+      const input = app.querySelector(`input[data-input="${targetName}"]`);
+      if (input instanceof HTMLInputElement) input.focus({ preventScroll: true });
+    });
   }
   if (button.dataset.action === "setSearchType") {
     universalType = button.dataset.type ?? "all";
@@ -1144,35 +1546,55 @@ app.addEventListener("click", (event) => {
     });
   }
   if (button.dataset.action === "clockMode") {
-    updateState((draft) => { draft.clockMode = button.dataset.mode; });
+    const mode = button.dataset.mode;
+    void updateState((draft) => { draft.clockMode = mode; }).then((saved) => {
+      if (saved) scheduleClockTick();
+    });
   }
   if (button.dataset.action === "weather") {
-    updateState((draft) => { draft.weather = button.dataset.weather; });
+    const weather = button.dataset.weather;
+    updateState((draft) => { draft.weather = weather; });
   }
   if (button.dataset.action === "startOffset") {
-    const baseGame = state.customDateTime || toLocalInputValue(new Date());
-    updateState((draft) => {
+    void updateState((draft) => {
+      const baseReal = new Date().toISOString();
+      const baseGame = draft.customDateTime || toLocalInputValue(new Date());
       draft.clockMode = "offset";
       draft.customDateTime = baseGame;
-      draft.offsetBaseReal = new Date().toISOString();
+      draft.offsetBaseReal = baseReal;
       draft.offsetBaseGame = new Date(baseGame).toISOString();
+    }).then((saved) => {
+      if (saved) scheduleClockTick();
     });
   }
   if (button.dataset.action === "export") {
-    exportState(state);
-    setNotice("バックアップを書き出しました。安全な場所に保管してください。");
+    if (Date.now() - lastExportAt >= 1_000) {
+      lastExportAt = Date.now();
+      void enqueueStateWrite(async () => {
+        state = await withStateStorageLock(() => readStoredStateStrict());
+        exportState(state);
+        setNotice("バックアップを書き出しました。安全な場所に保管してください。");
+      }).catch((error) => {
+        console.warn("Backup export was stopped because the saved state could not be read safely.", error);
+        setNotice("保存データを安全に読み取れないため、書き出しを中止しました。データを上書きせず、端末の空き容量を確認してください。", "error");
+      });
+    }
   }
   if (button.dataset.action === "addCalc") {
+    const id = button.dataset.id;
     updateState((draft) => {
-      const existing = draft.calculator.find((row) => row.id === button.dataset.id);
+      const existing = draft.calculator.find((row) => row.id === id);
       draft.calculator = existing
-        ? draft.calculator.map((row) => row.id === button.dataset.id ? { ...row, quantity: row.quantity + 1 } : row)
-        : [...draft.calculator, { id: button.dataset.id, quantity: 1 }];
+        ? draft.calculator.map((row) => row.id === id ? { ...row, quantity: row.quantity + 1 } : row)
+        : [...draft.calculator, { id, quantity: 1 }];
     });
   }
   if (button.dataset.action === "removeCalc") {
+    const index = Number(button.dataset.index);
+    const expectedId = state.calculator[index]?.id;
     updateState((draft) => {
-      draft.calculator = draft.calculator.filter((_, index) => index !== Number(button.dataset.index));
+      if (draft.calculator[index]?.id !== expectedId) return;
+      draft.calculator = draft.calculator.filter((_, rowIndex) => rowIndex !== index);
     });
   }
   if (button.dataset.action === "setMonth") {
@@ -1184,52 +1606,90 @@ app.addEventListener("click", (event) => {
 app.addEventListener("input", (event) => {
   const input = event.target instanceof HTMLInputElement ? event.target : null;
   if (!input) return;
-  if (input.dataset.input === "query") {
-    query = input.value;
-    render();
-  }
-  if (input.dataset.input === "universalQuery") {
-    universalQuery = input.value;
-    render();
-  }
-  if (input.dataset.input === "homeUniversalQuery") {
-    universalQuery = input.value;
-  }
-  if (input.dataset.input === "collectionQuery") {
-    collectionQuery = input.value;
-    render();
-  }
-  if (input.dataset.input === "calculatorQuery") {
-    calculatorQuery = input.value;
-    render();
-  }
   if (input.dataset.input === "customDateTime") {
+    const value = input.value;
     updateState((draft) => {
       draft.clockMode = "custom";
-      draft.customDateTime = input.value;
-    });
+      draft.customDateTime = value;
+    }, { renderAfter: false });
+    return;
   }
   if (input.dataset.action === "calcQty") {
+    const index = Number(input.dataset.index);
+    const expectedId = state.calculator[index]?.id;
+    const quantity = normalizeQuantity(input.value);
     updateState((draft) => {
-      draft.calculator = draft.calculator.map((row, index) =>
-        index === Number(input.dataset.index) ? { ...row, quantity: normalizeQuantity(input.value) } : row
+      draft.calculator = draft.calculator.map((row, rowIndex) =>
+        rowIndex === index && row.id === expectedId ? { ...row, quantity } : row
       );
-    });
+    }, { renderAfter: false });
+    return;
   }
+  const inputName = input.dataset.input ?? null;
+  const shouldRender = applyTextInputValue(input);
+  const eventIsComposing = event instanceof InputEvent && event.isComposing;
+  if (eventIsComposing || (inputName && composingInputName === inputName)) return;
+  if (inputName && skipCommittedInputName === inputName) {
+    skipCommittedInputName = null;
+    return;
+  }
+  if (shouldRender) render();
+});
+
+app.addEventListener("compositionstart", (event) => {
+  const input = event.target instanceof HTMLInputElement ? event.target : null;
+  if (!input?.dataset.input) return;
+  composingInputName = input.dataset.input;
+});
+
+app.addEventListener("compositionend", (event) => {
+  const input = event.target instanceof HTMLInputElement ? event.target : null;
+  if (!input?.dataset.input) return;
+  const inputName = input.dataset.input;
+  const shouldRender = applyTextInputValue(input);
+  composingInputName = null;
+  skipCommittedInputName = inputName;
+  const shouldFlush = pendingRender || shouldRender;
+  if (shouldFlush) render();
+  setTimeout(() => {
+    if (skipCommittedInputName === inputName) skipCommittedInputName = null;
+  }, 0);
 });
 
 app.addEventListener("change", async (event) => {
   const input = event.target instanceof HTMLInputElement ? event.target : null;
   if (!input) return;
   if (input.dataset.input === "import" && input.files?.[0]) {
+    if (importInFlight) return;
+    const file = input.files[0];
+    importInFlight = (async () => {
+      const imported = await importStateFile(file);
+      const persisted = await enqueueStateWrite(() => replaceStoredState(imported));
+      state = persisted;
+    })();
     try {
-      state = await importStateFile(input.files[0]);
-      save();
+      await importInFlight;
       setNotice("バックアップを読み込みました。コレクションと設定を復元しています。", "success");
-      render();
-    } catch {
+      scheduleClockTick();
+    } catch (error) {
+      console.warn("Backup import was rejected; the previous state remains active.", error);
       setNotice("このバックアップは読み込めませんでした。ファイル形式とバージョンを確認してください。", "error");
+    } finally {
+      importInFlight = null;
     }
+  }
+  if (input.dataset.input === "customDateTime") {
+    const pendingWrite = stateWriteTail;
+    void pendingWrite.then(() => {
+      setTimeout(() => {
+        scheduleClockTick();
+        render();
+      }, 0);
+    });
+  }
+  if (input.dataset.action === "calcQty") {
+    const pendingWrite = stateWriteTail;
+    void pendingWrite.then(() => setTimeout(render, 0));
   }
 });
 
@@ -1245,6 +1705,7 @@ app.addEventListener("submit", (event) => {
 
 app.addEventListener("keydown", (event) => {
   const input = event.target instanceof HTMLInputElement ? event.target : null;
+  if (event.isComposing || event.keyCode === 229) return;
   if (event.key === "Enter" && input?.dataset.input === "universalQuery") {
     rememberSearch(input.value);
   }
@@ -1260,12 +1721,119 @@ app.addEventListener("error", (event) => {
   if (fallback instanceof HTMLElement) fallback.hidden = false;
 }, true);
 
+function reloadPersistedStateSafely() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    state = parseImportedStateText(raw);
+  } catch (error) {
+    console.warn("Persisted state could not be refreshed; the current in-memory state remains active.", error);
+  }
+}
+
+function scheduleClockTick() {
+  if (clockTimer) clearTimeout(clockTimer);
+  clockTimer = null;
+  app.dataset.clockTimerActive = "false";
+  if (state.clockMode === "custom" || document.hidden) return;
+  const delay = 60_000 - (Date.now() % 60_000) + 40;
+  clockTimer = setTimeout(() => {
+    renderPreservingViewport();
+    scheduleClockTick();
+  }, delay);
+  app.dataset.clockTimerActive = "true";
+}
+
+let stableViewportHeight = window.visualViewport?.height ?? window.innerHeight;
+
+function updateVisualViewport() {
+  const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+  const active = document.activeElement;
+  const editing = active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement || active instanceof HTMLSelectElement;
+  if (!editing) stableViewportHeight = Math.max(viewportHeight, window.innerHeight);
+  const keyboardOpen = editing && viewportHeight < stableViewportHeight - 120;
+  document.documentElement.style.setProperty("--visual-viewport-height", `${Math.max(1, viewportHeight)}px`);
+  document.documentElement.classList.toggle("keyboard-open", keyboardOpen);
+  if (keyboardOpen && active instanceof HTMLElement) {
+    requestAnimationFrame(() => active.scrollIntoView({ block: "nearest", inline: "nearest" }));
+  }
+}
+
+const resumeCoordinator = createResumeCoordinator(async (reasons) => {
+  recoveryCount += 1;
+  lastRecoveryReasons = [...reasons];
+  recoveryInProgress = true;
+  connectionOnline = navigator.onLine;
+  reloadPersistedStateSafely();
+  updateVisualViewport();
+  scheduleClockTick();
+  if (connectionOnline && expansionLoadError && reasons.includes("online")) {
+    recoveryInProgress = false;
+    reloadForExpansionRecovery();
+    return;
+  }
+  renderPreservingViewport();
+  if (connectionOnline) {
+    void checkForServiceWorkerUpdate().finally(() => {
+      recoveryInProgress = false;
+      if (app.dataset.updateAvailable !== String(updateAvailable)) renderPreservingViewport();
+    });
+  } else {
+    recoveryInProgress = false;
+  }
+}, {
+  onError: (error) => console.warn("Resume recovery failed; the current page remains usable.", error)
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") resumeCoordinator.schedule("visibilitychange");
+  else scheduleClockTick();
+});
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted) resumeCoordinator.schedule("pageshow");
+});
+window.addEventListener("focus", () => resumeCoordinator.schedule("focus"));
+window.addEventListener("online", () => {
+  connectionOnline = true;
+  resumeCoordinator.schedule("online");
+});
+window.addEventListener("offline", () => {
+  connectionOnline = false;
+  renderPreservingViewport();
+});
+window.addEventListener("pagehide", persistUiSession);
+window.addEventListener("storage", (event) => {
+  if (event.key !== STORAGE_KEY) return;
+  void stateWriteTail.then(() => {
+    try {
+      state = readStoredStateStrict();
+    } catch (error) {
+      console.warn("A storage update from another page was rejected.", error);
+      return;
+    }
+    scheduleClockTick();
+    renderPreservingViewport();
+  });
+});
+window.addEventListener("resize", updateVisualViewport);
+window.addEventListener("focusin", updateVisualViewport);
+window.addEventListener("focusout", () => setTimeout(updateVisualViewport, 0));
+window.visualViewport?.addEventListener("resize", updateVisualViewport);
+window.visualViewport?.addEventListener("scroll", updateVisualViewport);
+
 function toLocalInputValue(date) {
   const pad = (number) => String(number).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+const restoredViewport = restoreUiSession();
+pendingUiScrollRestore = { route, top: restoredViewport.top, anchor: restoredViewport.anchor };
+updateVisualViewport();
 render();
+if (!routeNeedsExpansionData(route)) restorePendingUiScroll();
+scheduleClockTick();
+void registerServiceWorker();
 if ("requestIdleCallback" in window) {
   window.requestIdleCallback(() => void requestExpansionData(), { timeout: 1000 });
 } else {

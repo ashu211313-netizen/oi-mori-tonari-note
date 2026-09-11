@@ -22,6 +22,7 @@ const required = [
   "index.html",
   "manifest.webmanifest",
   "icon.svg",
+  "icon-180.png",
   "icon-192.png",
   "icon-512.png",
   "sw.js",
@@ -86,8 +87,19 @@ if (existsSync(path.join(deployRoot, "manifest.webmanifest"))) {
 
 if (existsSync(path.join(deployRoot, "sw.js"))) {
   const sw = readFileSync(path.join(deployRoot, "sw.js"), "utf8");
-  if (!sw.includes('CACHE_NAME = "wild-world-companion-v14"')) errors.push("Service Worker is not v14");
-  if (!sw.includes('caches.match("./index.html")')) errors.push("Service Worker has no relative navigation fallback");
+  if (!sw.includes('CACHE_NAME = "wild-world-companion-v15"')) errors.push("Service Worker is not v15");
+  if (!/const NAVIGATION_SHELL\s*=\s*new URL\("\.\/index\.html",\s*self\.location\.href\)\.href/.test(sw)) {
+    errors.push("Service Worker has no scope-relative canonical navigation shell");
+  }
+  if (!/const CORE_ASSETS\s*=\s*\[[\s\S]*?\bNAVIGATION_SHELL\b/.test(sw)) {
+    errors.push("Service Worker does not precache the canonical navigation shell");
+  }
+  if (!/event\.request\.mode === "navigate"[\s\S]*?caches\.open\(CACHE_NAME\)[\s\S]*?cache\.match\(NAVIGATION_SHELL\)/.test(sw)) {
+    errors.push("Service Worker navigation does not read the canonical shell from the current app cache");
+  }
+  if (/caches\.match\(\s*["']\.\/index\.html["']\s*\)/.test(sw)) {
+    errors.push("Service Worker still uses the legacy relative global-cache navigation lookup");
+  }
   for (const [, relative] of sw.matchAll(/"\.\/(.*?)"/g)) {
     if (relative && !existsSync(path.join(deployRoot, relative))) errors.push(`missing precache asset: ${relative}`);
   }

@@ -1,12 +1,14 @@
-# Human Verification Kit — GitHub Pages v14
+# Human Verification Kit — iPhone-first / GitHub Pages v15 candidate
 
 このKitは、このWindows hostだけでは完了できない検証を別の監査者が再現し、機械結果と混同せず返却するためのものです。`PASS` は全必須stepと証拠が揃った場合だけ記入します。Emulation、axe、localhost、Playwright WebKitを、それぞれ実機、実screen reader、public HTTPS、Safariの代用にしません。
+
+2026-09-11のローカル自動baselineはUnit 128/128とcheckJs/Lint/Build/Data/Provenance/Evidence/Static/Security/ImagesがPASS、既存E2Eがinstalled Chrome 152.0.7977.83 22/22（16,708.4848ms）、Edge 152.0.4191.66 22/22（16,644.6033ms）、managed WebKit 26.5 22/22（32,808.9665ms）PASSです。focused iPhone E2Eはinstalled Chrome 20/20（36,526.2435ms）、managed WebKit 26.5 20/20（76,493.9532ms）、screen captureは両engine各27/27、Pages subpathは5/5、Lighthouse 13.4.1は91 / 100 / 100 / 100です。Firefoxは通常権限・権限昇格runともapp assertion前に`spawn UNKNOWN`となり`ENVIRONMENT_BLOCKED_BEFORE_APP_ASSERTIONS`です。これらにより以下のphysical iPhone / Safari / Home Screen / 実keyboard / 日本語IME / VoiceOver / Android手順を省略しません。
 
 ## 共通の対象固定
 
 1. release ZIPと同梱manifestのSHA-256を再計算し、一致を記録する。
 2. Node.js 22以上／pnpm 11.19.0で `pnpm install --frozen-lockfile`、`pnpm test`、`pnpm run typecheck`、`pnpm run lint`、`pnpm run build` を実行する。
-3. `sw.js` が `wild-world-companion-v14`、`src/data.js` がData Version `2026.09.03.3`、保存キーが `wildWorldCompanionState.v1`、schemaVersionが3であることを記録する。
+3. `sw.js` が `wild-world-companion-v15`、`src/data.js` がData Version `2026.09.03.3`、保存キーが `wildWorldCompanionState.v1`、schemaVersionが3であることを記録する。Canonical game-data変更が0件であることも差分から確認する。
 4. 端末、OS、browser/screen-reader版、locale/timezone、実行日時、package hashを `artifacts/qa/human-verification-result-template.json` のコピーへ記録する。
 5. 編集・切り抜き前のscreen recording、screenshot、console/network export、失敗も含む操作logを保存する。個人情報は収集前に除去する。
 
@@ -15,16 +17,19 @@
 各targetは別resultとして実行します。Safari desktopは現行macOS Safari、iOSは実iPhone/iPadのSafari、Androidは実端末Chromeを使用します。
 
 1. 認可済みHTTPS URLを新しいprivate browsing/profileで開き、タイトル、主要nav、manifest、installabilityを確認する。
-2. 日本語で「サメ」を1文字ずつ入力し、focusと結果が維持されることを確認する。
+2. 実日本語keyboardで「アジアなベッド」と「サメ」を変換を含めて1文字ずつ入力し、composition中のfocus、候補確定、結果、clear controlが維持されることを確認する。自動composition eventの結果だけでは不可。
 3. サカナで「淡水」を選びムシへ切替え、hidden filterが残らないことを確認する。
 4. game日時を設定し、月calendarを切り替え、reload後もgame日時と保存状態が維持されることを確認する。
 5. サメを寄贈し、捕獲が自動成立し、reload後も両方が維持されることを確認する。
 6. `すてきなめいが` を偽物にし、寄贈不可と10ベル計算を確認する。
-7. 検索タブでアイテム・住民・はにわ・NPC・施設・イベントを各1件検索し、detail、出典、back-queryを確認する。月Calendarでイベントと住民誕生日を確認し、アイテムの入手済み/カタログ済み、はにわの収集済み、住民のお気に入りを設定してreload後も保持されることを確認する。
-8. 旧v13配布物を先にinstallしてschema v3 stateを作成し、その後v14へ更新する。v13 app cacheの除去、v14 cache、core/expansion state、無関係origin dataの保持を確認する。v1/v2 backupのv3移行は別ケースで確認する。
-9. online load後にnetworkを実際に切断し、appを終了・再起動してhome、いきもの検索、拡張domain検索が使えることを確認する。automationのoffline flagだけでは不可。
-10. 320 CSS px相当のportraitでhorizontal overflow、44px未満の操作target、safe-area重なりを確認する。
-11. install、standalone起動、update、offline、OS再起動後の再起動をscreen recordingに含める。
+7. 検索タブでアイテム・住民・はにわ・NPC・施設・イベントを各1件検索し、detail、出典、back-queryを確認する。長い一覧を十分にscrollしてdetailを開き、戻った時のquery、filter、元card位置をscreen recordingで比較する。
+8. 月Calendarでイベントと住民誕生日を確認し、アイテムの入手済み/カタログ済み、はにわの収集済み、住民のお気に入りを設定してreload後も保持されることを確認する。Safari tabとHome Screen PWAを同時に開き、片方の変更がもう片方へ反映されるか、反映されない場合は手順とstateを記録する。
+9. 2026-09-04公開v14を先にinstallしてschema v3 stateを作成し、必ずBackupを書き出す。その後v15を配備し、同じoriginを開いているSafari tabとHome Screen PWAをすべて終了してからオンラインで再起動する。旧v14画面にはv15の更新noticeがないため、noticeやセッション内handoffを期待しない。再起動後にv15 cache、v14 app cacheの除去、core/expansion LocalStorage state、無関係origin dataの保持を確認する。旧v14 sessionのroute/query/scroll保持は保証対象外として、結果をPASS条件に含めない。v1/v2 backupのv3移行は別ケースで確認する。
+10. online load後にnetworkを実際に切断し、appを終了・再起動してhome、いきもの検索、拡張domain検索、Collection更新、Backup書き出しが使えることを確認する。通信を戻した時に保存が消えず、無限reloadがないことを確認する。automationのoffline flagだけでは不可。
+11. 390×844、393×852、430×932を含む利用可能なportraitでhorizontal overflow、44px未満の操作target、notch / Dynamic Island / home indicatorとのsafe-area重なりを確認する。portrait↔landscape回転も記録する。
+12. 検索欄をfocusして実keyboardを開閉し、input zoom、bottom navigationとの重なり、候補確定、scroll jumpを確認する。入力中にbackgroundへ移動し、30秒・5分・process eviction後の3条件で復帰して、重複shell、古い時計、state消失、意図しないreloadがないか記録する。
+13. valid Backupの書き出しと再読込、不正JSONとfuture schemaの拒否を実Safari download / Files UIで確認する。失敗時に既存stateが変わらないことを確認する。
+14. install、standalone起動、update、offline、background/resume、OS再起動後の再起動を未編集screen recordingに含める。
 
 Safari desktop、iOS、Androidは互いに独立したPASS/FAILです。iOS ChromeはWebKitでもSafari PWAの代用PASSにはしません。
 
@@ -45,13 +50,13 @@ axeとaccessibility treeのPASSは参考添付に留め、上記の音声・focu
 
 公開対象は [GitHub Pages](https://ashu211313-netizen.github.io/oi-mori-tonari-note/) です。別targetを使う場合も所有または明示認可されたdeploymentだけを使用し、commit相当IDを固定します。
 
-1. PowerShellで `$env:WW_PUBLIC_URL='https://ashu211313-netizen.github.io/oi-mori-tonari-note/'` を設定してから `pnpm run verify:live-pages` を実行し、HTTPS/HSTS、document security meta、manifest、SW v14、icon、precache、公開除外を検証する。
+1. PowerShellで `$env:WW_PUBLIC_URL='https://ashu211313-netizen.github.io/oi-mori-tonari-note/'` を設定してから `pnpm run verify:live-pages` を実行し、HTTPS/HSTS、document security meta、manifest、SW v15、180/192/512px icon、全precache、公開除外を検証する。
 2. HTTP URLがHTTPSへredirectし、final URL・certificate chain・expiry・hostname一致を保存する。
 3. clean profileでinstallし、DevTools Application/Storageとnetwork HARを保存する。
-4. v13→v14 update、保存state保持、offline cold start、拡張・イベント検索、再接続後updateをSafari/iOS/Androidの実targetでも実行する。
+4. v14→v15はBackup→全Safari tab / Home Screen PWA終了→オンライン再起動で検証し、durable LocalStorage state保持とv15 cacheへの移行を確認する。旧v14 sessionのroute/query/scroll保持やv14画面内のupdate noticeは要求しない。v15→次版のexplicit updateは別ケースとして、notice、1回だけのreload、route/query/scroll保持をSafari/iOS/Androidの実targetで確認する。
 5. CDN/proxyが`sw.js`を長期cacheせず、`index.html`とunhashed assetsがrevalidationされることをresponse headerで確認する。
 
-自動live gateはPASS済みです。ただし物理iPhone/SafariとAndroid上のinstall、offline cold start、OS再起動後の確認は、このKitに従って別resultとして実施するまで`NOT_RUN`です。
+2026-09-04公開v14の自動live gateはPASS済みです。v15候補のPR、merge、再配備、公開live gateは本書更新時点で`NOT_RUN`であり、過去のv14 PASSを転用しません。物理iPhone/Safariでのv14→v15 close/reopen移行、Home Screen install、実keyboard / 日本語IME、background/resume、offline cold start、OS再起動、VoiceOver、およびAndroid実機は、このKitに従って別resultとして実施するまで`NOT_RUN`です。
 
 ## 日本版ADMJ実機・CONFLICT
 

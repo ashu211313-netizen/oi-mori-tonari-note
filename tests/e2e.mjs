@@ -60,6 +60,8 @@ async function openApp(t, options = {}) {
   });
   page.on("pageerror", (error) => severeLogs.push(`pageerror: ${error.message}`));
   await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
+  await page.getByRole("heading", { name: "おい森 となりノート" }).waitFor();
+  await page.locator('#app[data-expansion-ready="true"]').waitFor();
   return { context, page, severeLogs };
 }
 
@@ -88,13 +90,37 @@ test("localhost is a secure PWA context with manifest and the current service wo
   assert.equal(result.manifestOk, true);
   assert.match(result.manifestContentType, /application\/manifest\+json/);
   assert.match(result.scope, /^http:\/\/127\.0\.0\.1:\d+\/$/);
-  assert.ok(result.cacheNames.includes("wild-world-companion-v14"), JSON.stringify(result.cacheNames));
+  assert.ok(result.cacheNames.includes("wild-world-companion-v15"), JSON.stringify(result.cacheNames));
   assert.equal(severeLogs.length, 0, severeLogs.join("\n"));
 });
 
 test("service worker update removes old app caches without touching saved state or unrelated caches", async (t) => {
   const { page, severeLogs } = await openApp(t);
   const result = await page.evaluate(async () => {
+    const waitForState = (worker, target) => {
+      if (worker.state === target) return Promise.resolve();
+      return new Promise((resolve, reject) => {
+        const cleanup = () => {
+          clearTimeout(timer);
+          worker.removeEventListener("statechange", onStateChange);
+        };
+        const onStateChange = () => {
+          if (worker.state === target) {
+            cleanup();
+            resolve();
+          } else if (worker.state === "redundant") {
+            cleanup();
+            reject(new Error(`service worker became redundant before ${target}`));
+          }
+        };
+        const timer = setTimeout(() => {
+          cleanup();
+          reject(new Error(`service worker ${target} timed out; state=${worker.state}`));
+        }, 10_000);
+        worker.addEventListener("statechange", onStateChange);
+        onStateChange();
+      });
+    };
     const storageKey = "wildWorldCompanionState.v1";
     const saved = {
       schemaVersion: 3,
@@ -106,27 +132,41 @@ test("service worker update removes old app caches without touching saved state 
     await (await caches.open("another-app-v1")).put("./other-marker", new Response("other"));
 
     const previous = await navigator.serviceWorker.ready;
-    await previous.unregister();
+    const previousScript = previous.active?.scriptURL ?? null;
     const registration = await navigator.serviceWorker.register(`./sw.js?update-test=${Date.now()}`);
-    const worker = registration.installing ?? registration.waiting ?? registration.active;
-    if (worker?.state !== "activated") {
-      await new Promise((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error("service worker activation timed out")), 10_000);
-        worker?.addEventListener("statechange", () => {
-          if (worker.state === "activated") {
-            clearTimeout(timer);
-            resolve();
-          }
-        });
-      });
-    }
+    const worker = registration.installing ?? registration.waiting;
+    if (!worker) throw new Error("updated service worker was not created");
+    if (worker.state === "installing") await waitForState(worker, "installed");
+    const waiting = registration.waiting ?? (worker.state === "installed" ? worker : null);
+    if (!waiting) throw new Error(`updated service worker did not wait; state=${worker.state}`);
+
+    // The app deliberately keeps the old generation active until the user accepts
+    // the update. Suppress only the app's automatic reload so this assertion can
+    // observe the full explicit waiting -> active handoff in one execution context.
+    sessionStorage.setItem("wildWorldCompanion.swReloadAt", String(Date.now()));
+    const controllerChanged = new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("service worker controllerchange timed out")), 10_000);
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        clearTimeout(timer);
+        resolve();
+      }, { once: true });
+    });
+    const activated = waitForState(waiting, "activated");
+    waiting.postMessage({ type: "SKIP_WAITING" });
+    await Promise.all([activated, controllerChanged]);
     return {
+      previousScript,
+      activeScript: registration.active?.scriptURL ?? null,
+      workerState: waiting.state,
       cacheNames: await caches.keys(),
       savedState: JSON.parse(localStorage.getItem(storageKey))
     };
   });
+  assert.equal(result.workerState, "activated");
+  assert.notEqual(result.activeScript, result.previousScript);
+  assert.match(result.activeScript, /sw\.js\?update-test=/);
   assert.equal(result.cacheNames.includes("wild-world-companion-v9"), false);
-  assert.equal(result.cacheNames.includes("wild-world-companion-v14"), true);
+  assert.equal(result.cacheNames.includes("wild-world-companion-v15"), true);
   assert.equal(result.cacheNames.includes("another-app-v1"), true);
   assert.equal(result.savedState.caught["fish-shark"], true);
   assert.equal(result.savedState.donated["fish-shark"], true);
@@ -195,6 +235,13 @@ test("item, gyroid, and resident collection state persists after reload", async 
   await page.locator('article[data-id="gyroid-001"]').getByRole("button", { name: "収集済み" }).click();
   await input.fill("アイダホ");
   await page.locator('article[data-id="resident-004"]').getByRole("button", { name: "お気に入り" }).click();
+  await page.waitForFunction(() => {
+    const saved = JSON.parse(localStorage.getItem("wildWorldCompanionState.v1"));
+    return saved.itemAcquired["item-kagu01-001"] === true
+      && saved.itemCataloged["item-kagu01-001"] === true
+      && saved.gyroidCollected["gyroid-001"] === true
+      && saved.favorites["resident-004"] === true;
+  });
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "検索", exact: true }).click();
   const restoredInput = page.getByLabel("すべてのデータを検索");
@@ -223,11 +270,24 @@ test("missing local images render stable accessible placeholders", async (t) => 
   await page.getByRole("button", { name: "いきもの" }).click();
   await page.getByLabel("検索").fill("サメ");
   const card = page.locator('article[data-id="fish-shark"]');
-  const placeholder = card.getByRole("img", { name: "サメの画像は未登録" });
-  assert.equal(await placeholder.isVisible(), true);
-  assert.equal(await card.locator("img[data-entity-image]").count(), 0);
-  const box = await placeholder.boundingBox();
-  assert.ok(box && Math.abs(box.width - box.height) <= 1, JSON.stringify(box));
+  await card.waitFor();
+  const imageSnapshot = await page.evaluate(() => {
+    const currentCard = document.querySelector('article[data-id="fish-shark"]');
+    const placeholder = currentCard?.querySelector('[role="img"][aria-label="サメの画像は未登録"]');
+    if (!(placeholder instanceof HTMLElement)) return null;
+    const rect = placeholder.getBoundingClientRect();
+    const style = getComputedStyle(placeholder);
+    return {
+      width: rect.width,
+      height: rect.height,
+      visible: !placeholder.hidden && style.display !== "none" && style.visibility !== "hidden",
+      realImages: currentCard?.querySelectorAll("img[data-entity-image]").length ?? -1
+    };
+  });
+  assert.ok(imageSnapshot, "image placeholder is missing");
+  assert.equal(imageSnapshot.visible, true, JSON.stringify(imageSnapshot));
+  assert.equal(imageSnapshot.realImages, 0, JSON.stringify(imageSnapshot));
+  assert.ok(imageSnapshot.width > 0 && Math.abs(imageSnapshot.width - imageSnapshot.height) <= 1, JSON.stringify(imageSnapshot));
   assert.equal(severeLogs.length, 0, severeLogs.join("\n"));
 });
 
@@ -254,11 +314,30 @@ test("calendar browsing never mutates the persisted game clock", async (t) => {
   const { page } = await openApp(t);
   await page.getByRole("button", { name: /ゲーム内時間.*ゲーム内日時を変更/ }).click();
   await page.locator('[data-input="customDateTime"]').fill("2026-08-31T20:30");
+  await page.getByRole("button", { name: "ホーム", exact: true }).click();
   await page.getByRole("button", { name: "月", exact: true }).click();
   await page.getByRole("button", { name: "2月", exact: true }).click();
   assert.equal(await page.locator(".clock-card strong").innerText(), "8月31日 20:30");
   await page.reload({ waitUntil: "domcontentloaded" });
   assert.equal(await page.locator(".clock-card strong").innerText(), "8月31日 20:30");
+  assert.equal(await page.locator("#app").getAttribute("data-clock-timer-active"), "false");
+
+  await page.getByRole("button", { name: /ゲーム内時間.*ゲーム内日時を変更/ }).click();
+  await page.getByRole("button", { name: "現在時刻", exact: true }).click();
+  await page.waitForFunction(() => {
+    const saved = JSON.parse(localStorage.getItem("wildWorldCompanionState.v1"));
+    return saved.clockMode === "real" && document.querySelector("#app")?.getAttribute("data-clock-timer-active") === "true";
+  });
+  await page.getByRole("button", { name: "ゲーム日時", exact: true }).click();
+  await page.waitForFunction(() => {
+    const saved = JSON.parse(localStorage.getItem("wildWorldCompanionState.v1"));
+    return saved.clockMode === "custom" && document.querySelector("#app")?.getAttribute("data-clock-timer-active") === "false";
+  });
+  await page.getByRole("button", { name: "差分で追従", exact: true }).click();
+  await page.waitForFunction(() => {
+    const saved = JSON.parse(localStorage.getItem("wildWorldCompanionState.v1"));
+    return saved.clockMode === "offset" && document.querySelector("#app")?.getAttribute("data-clock-timer-active") === "true";
+  });
 });
 
 test("calendar exposes source-backed events and resident birthdays", async (t) => {
@@ -277,6 +356,7 @@ test("donation invariants persist after reload", async (t) => {
   await page.getByRole("button", { name: "いきもの" }).click();
   const shark = page.locator('article[data-id="fish-shark"]');
   await shark.getByRole("button", { name: "寄贈" }).click();
+  await page.waitForFunction(() => document.querySelector('article[data-id="fish-shark"] button[data-key="caught"]')?.getAttribute("aria-pressed") === "true");
   assert.equal(await shark.getByRole("button", { name: "捕獲" }).getAttribute("aria-pressed"), "true");
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "いきもの" }).click();
@@ -290,11 +370,38 @@ test("forged art cannot be donated and uses the 10-Bell calculator price", async
   await page.locator('[data-input="query"]').fill("すてきなめいが");
   const art = page.locator('article[data-id="art-dainty-painting"]');
   await art.getByRole("button", { name: "偽物" }).click();
+  await page.waitForFunction(() => document.querySelector('article[data-id="art-dainty-painting"] button[data-key="donated"]')?.disabled === true);
   assert.equal(await art.getByRole("button", { name: "寄贈" }).isDisabled(), true);
   assert.equal(await art.locator(".price").innerText(), "10ベル");
   await page.locator('[data-input="calculatorQuery"]').fill("すてきなめいが");
   await page.locator('.suggestions button[data-id="art-dainty-painting"]').click();
+  await page.waitForFunction(() => document.querySelector(".calc-total strong")?.textContent?.trim() === "10ベル");
   assert.equal(await page.locator(".calc-total strong").innerText(), "10ベル");
+
+  await page.evaluate(() => {
+    const key = "wildWorldCompanionState.v1";
+    const saved = JSON.parse(localStorage.getItem(key));
+    saved.calculator = [
+      { id: "future-or-removed-entity", quantity: 7 },
+      { id: "art-dainty-painting", quantity: 2 },
+      { id: "art-dainty-painting", quantity: 3 }
+    ];
+    localStorage.setItem(key, JSON.stringify(saved));
+  });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "売却" }).click();
+  const duplicateQuantities = page.getByLabel("すてきなめいがの数量");
+  assert.equal(await duplicateQuantities.count(), 2);
+  await duplicateQuantities.nth(1).fill("4");
+  await page.waitForFunction(() => {
+    const rows = JSON.parse(localStorage.getItem("wildWorldCompanionState.v1")).calculator;
+    return rows.length === 3 && rows[0].id === "future-or-removed-entity" && rows[1].quantity === 2 && rows[2].quantity === 4;
+  });
+  await page.locator('.calc-row button[data-action="removeCalc"]').first().click();
+  await page.waitForFunction(() => {
+    const rows = JSON.parse(localStorage.getItem("wildWorldCompanionState.v1")).calculator;
+    return rows.length === 2 && rows[0].id === "future-or-removed-entity" && rows[1].id === "art-dainty-painting" && rows[1].quantity === 4;
+  });
 });
 
 test("museum category cards drill down to the selected collection", async (t) => {
@@ -371,7 +478,7 @@ test("collection filters and item state work as a real cross-domain collection",
   await page.getByRole("button", { name: "集めた", exact: true }).click();
   assert.equal(await card.isVisible(), true);
   await page.reload({ waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "コレクション", exact: true }).click();
+  await assert.doesNotReject(page.getByRole("heading", { name: "集めたものを、ひとつのノートに。" }).waitFor());
   await page.getByLabel("コレクション内を検索").fill("ブルーファルコン");
   assert.equal(await page.locator('article[data-id="item-kagu04-216"]').getByRole("button", { name: "入手済み" }).getAttribute("aria-pressed"), "true");
   assert.equal(severeLogs.length, 0, severeLogs.join("\n"));

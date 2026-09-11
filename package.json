@@ -8,7 +8,10 @@
   },
   "scripts": {
     "dev": "node scripts/dev-server.mjs",
+    "generate:apple-icon": "node scripts/generate-apple-icon.mjs",
+    "capture:iphone": "node scripts/capture-iphone-screens.mjs",
     "test": "node --test tests/*.test.js",
+    "test:iphone": "node --test tests/iphone-e2e.mjs",
     "test:e2e": "node --test tests/e2e.mjs",
     "test:e2e:report": "node scripts/run-e2e-target.mjs",
     "typecheck": "tsc -p jsconfig.json",

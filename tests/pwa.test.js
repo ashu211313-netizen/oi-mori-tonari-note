@@ -53,12 +53,58 @@ test("service worker precache entries resolve to real files", () => {
   assert.match(sw, /event\.request\.mode === "navigate"/);
   assert.match(sw, /new URL\(event\.request\.url\)\.origin !== self\.location\.origin/);
   assert.match(sw, /src\/images\.js/);
+  assert.match(sw, /src\/lifecycle\.js/);
   assert.match(sw, /src\/expansion-data\.js/);
   assert.match(sw, /src\/universal-search\.js/);
   assert.match(sw, /src\/generated\/expansion-records\.js/);
   assert.match(sw, /src\/generated\/image-assets\.js/);
-  assert.match(sw, /wild-world-companion-v14/);
+  assert.match(sw, /icon-180\.png/);
+  assert.match(sw, /wild-world-companion-v15/);
   assert.match(sw, /wild-world-images-v1/);
+});
+
+test("service worker precaches atomically and waits for an explicit update handoff", async () => {
+  const handlers = {};
+  const precached = [];
+  let skipWaitingCalls = 0;
+  const context = {
+    URL,
+    Response,
+    fetch,
+    self: {
+      location: { origin: "https://example.test", href: "https://example.test/oi-mori-tonari-note/sw.js" },
+      clients: { claim: async () => undefined },
+      skipWaiting: async () => { skipWaitingCalls += 1; },
+      addEventListener: (name, handler) => { handlers[name] = handler; }
+    },
+    caches: {
+      keys: async () => [],
+      delete: async () => true,
+      open: async () => ({
+        addAll: async (assets) => { precached.push(...assets); },
+        match: async () => undefined,
+        put: async () => undefined
+      })
+    }
+  };
+  vm.runInNewContext(read("sw.js"), context);
+
+  let installation;
+  handlers.install({ waitUntil: (promise) => { installation = promise; } });
+  await installation;
+  assert.equal(skipWaitingCalls, 0);
+  assert.ok(precached.includes("./icon-180.png"));
+  assert.ok(precached.includes("./src/lifecycle.js"));
+
+  handlers.message({ data: { type: "NOT_AN_UPDATE" }, waitUntil: () => assert.fail("unexpected waitUntil") });
+  assert.equal(skipWaitingCalls, 0);
+  let handoff;
+  handlers.message({
+    data: { type: "SKIP_WAITING" },
+    waitUntil: (promise) => { handoff = promise; }
+  });
+  await handoff;
+  assert.equal(skipWaitingCalls, 1);
 });
 
 test("service worker activation removes only old app and image caches", async () => {
@@ -69,7 +115,7 @@ test("service worker activation removes only old app and image caches", async ()
     Response,
     fetch,
     self: {
-      location: { origin: "https://example.test" },
+      location: { origin: "https://example.test", href: "https://example.test/oi-mori-tonari-note/sw.js" },
       clients: { claim: async () => undefined },
       skipWaiting: async () => undefined,
       addEventListener: (name, handler) => { handlers[name] = handler; }
@@ -84,6 +130,7 @@ test("service worker activation removes only old app and image caches", async ()
         "wild-world-companion-v12",
         "wild-world-companion-v13",
         "wild-world-companion-v14",
+        "wild-world-companion-v15",
         "wild-world-images-v0",
         "wild-world-images-v1",
         "another-app-v1"
@@ -105,8 +152,109 @@ test("service worker activation removes only old app and image caches", async ()
         "wild-world-companion-v10",
     "wild-world-companion-v12",
     "wild-world-companion-v13",
+    "wild-world-companion-v14",
     "wild-world-images-v0"
   ]);
+});
+
+test("navigation always uses the canonical shell key and never caches query URLs", async () => {
+  const handlers = {};
+  const matched = [];
+  const put = [];
+  let networkCalls = 0;
+  const shell = new Response("shell", { status: 200 });
+  const context = {
+    URL,
+    Response,
+    fetch: async () => { networkCalls += 1; return new Response("network"); },
+    self: {
+      location: { origin: "https://example.test", href: "https://example.test/oi-mori-tonari-note/sw.js" },
+      clients: { claim: async () => undefined },
+      skipWaiting: async () => undefined,
+      addEventListener: (name, handler) => { handlers[name] = handler; }
+    },
+    caches: {
+      keys: async () => [],
+      delete: async () => true,
+      open: async () => ({
+        addAll: async () => undefined,
+        match: async (request) => {
+          matched.push(request);
+          return request === "https://example.test/oi-mori-tonari-note/index.html" ? shell : undefined;
+        },
+        put: async (request) => { put.push(request); }
+      })
+    }
+  };
+  vm.runInNewContext(read("sw.js"), context);
+  let responsePromise;
+  handlers.fetch({
+    request: {
+      method: "GET",
+      mode: "navigate",
+      destination: "document",
+      url: "https://example.test/oi-mori-tonari-note/?resume=3"
+    },
+    respondWith: (promise) => { responsePromise = promise; }
+  });
+  const response = await responsePromise;
+  assert.equal(await response.text(), "shell");
+  assert.deepEqual(matched, ["https://example.test/oi-mori-tonari-note/index.html"]);
+  assert.deepEqual(put, []);
+  assert.equal(networkCalls, 0);
+});
+
+test("static assets are cache-first and cache a safe network response", async () => {
+  const handlers = {};
+  const cachedResponse = new Response("cached");
+  const put = [];
+  let networkCalls = 0;
+  const cache = {
+    addAll: async () => undefined,
+    match: async (request) => request.url.endsWith("cached.js") ? cachedResponse : undefined,
+    put: async (request, response) => { put.push([request.url, response]); }
+  };
+  const networkResponse = {
+    status: 200,
+    type: "basic",
+    clone: () => new Response("network-copy")
+  };
+  const context = {
+    URL,
+    Response,
+    fetch: async () => { networkCalls += 1; return networkResponse; },
+    self: {
+      location: { origin: "https://example.test", href: "https://example.test/oi-mori-tonari-note/sw.js" },
+      clients: { claim: async () => undefined },
+      skipWaiting: async () => undefined,
+      addEventListener: (name, handler) => { handlers[name] = handler; }
+    },
+    caches: {
+      keys: async () => [],
+      delete: async () => true,
+      open: async () => cache
+    }
+  };
+  vm.runInNewContext(read("sw.js"), context);
+
+  const dispatch = async (url) => {
+    let responsePromise;
+    handlers.fetch({
+      request: { method: "GET", mode: "cors", destination: "script", url },
+      respondWith: (promise) => { responsePromise = promise; }
+    });
+    return responsePromise;
+  };
+
+  const cached = await dispatch("https://example.test/src/cached.js");
+  assert.equal(await cached.text(), "cached");
+  assert.equal(networkCalls, 0);
+
+  const network = await dispatch("https://example.test/src/fresh.js");
+  assert.equal(network, networkResponse);
+  assert.equal(networkCalls, 1);
+  assert.equal(put.length, 1);
+  assert.equal(put[0][0], "https://example.test/src/fresh.js");
 });
 
 test("UI exposes evidence limits and the current data version", () => {

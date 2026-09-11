@@ -922,7 +922,7 @@ a:focus-visible {
 
 html {
   background: var(--color-bg);
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
 }
 
 body {
@@ -1933,5 +1933,260 @@ button:not(:disabled):hover {
     scroll-behavior: auto !important;
     transition: none !important;
     animation: none !important;
+  }
+}
+
+/* iPhone-first shell hardening ---------------------------------------------
+   Keep content inside the notch/home-indicator safe area without turning the
+   document into a nested scroller. JavaScript updates the visual viewport
+   variable while the software keyboard is open. */
+:root {
+  --safe-area-top: env(safe-area-inset-top);
+  --safe-area-right: env(safe-area-inset-right);
+  --safe-area-bottom: env(safe-area-inset-bottom);
+  --safe-area-left: env(safe-area-inset-left);
+  --page-inline-gutter: 20px;
+  --floating-inline-gutter: max(10px, var(--safe-area-left), var(--safe-area-right));
+  --visual-viewport-height: 100dvh;
+}
+
+html,
+body {
+  min-width: 0;
+  max-width: 100%;
+}
+
+body {
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  overflow-x: clip;
+  overscroll-behavior-x: none;
+}
+
+#app {
+  min-width: 0;
+  overflow-anchor: none;
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
+  padding-bottom: calc(96px + var(--safe-area-bottom));
+}
+
+.page {
+  max-width: 100%;
+  padding-left: max(var(--page-inline-gutter), var(--safe-area-left));
+  padding-right: max(var(--page-inline-gutter), var(--safe-area-right));
+}
+
+.app-header {
+  width: min(1180px, calc(100% - var(--floating-inline-gutter) - var(--floating-inline-gutter)));
+  padding-top: calc(10px + var(--safe-area-top));
+}
+
+input,
+select,
+textarea {
+  min-width: 0;
+  font-size: 16px;
+}
+
+input[type="search"]::-webkit-search-cancel-button {
+  display: none;
+  -webkit-appearance: none;
+}
+
+.search-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.search-control > input {
+  min-height: 48px;
+  width: 100%;
+  min-width: 0;
+}
+
+.search-control > .search-clear {
+  display: grid;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  place-items: center;
+  color: var(--color-muted);
+  background: #f1ead7;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  box-shadow: none;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.search-prominent > label {
+  color: var(--color-primary-strong);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.chip {
+  min-width: 44px;
+}
+
+.filter-row,
+.recent-searches {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.recent-searches {
+  overflow-x: auto;
+  padding: 4px 0 12px;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.recent-searches::-webkit-scrollbar,
+.filter-row::-webkit-scrollbar {
+  display: none;
+}
+
+.recent-searches > * {
+  flex: 0 0 auto;
+}
+
+.recent-searches > .chip {
+  max-width: min(78vw, 20rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.brand-lockup > div,
+.page-heading > div,
+.page-intro > div,
+.section-title > div,
+.entity-summary,
+.detail-heading,
+.answer-list li > div,
+.settings-card,
+.app-notice > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.status-stack {
+  position: relative;
+  z-index: 50;
+  display: grid;
+  width: min(520px, calc(100% - var(--floating-inline-gutter) - var(--floating-inline-gutter)));
+  gap: 8px;
+  margin: 8px auto;
+}
+
+.status-stack > * {
+  width: 100%;
+  margin: 0;
+  pointer-events: auto;
+}
+
+.back-button {
+  scroll-margin-top: calc(120px + var(--safe-area-top));
+}
+
+.status-stack .app-notice {
+  position: static;
+  width: 100%;
+  transform: none;
+}
+
+.app-notice {
+  width: min(520px, calc(100% - var(--floating-inline-gutter) - var(--floating-inline-gutter)));
+}
+
+.bottom-nav {
+  width: min(680px, calc(100% - var(--floating-inline-gutter) - var(--floating-inline-gutter)));
+  bottom: max(10px, var(--safe-area-bottom));
+}
+
+.keyboard-open .bottom-nav {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, calc(100% + var(--safe-area-bottom) + 16px));
+}
+
+.keyboard-open .status-stack,
+.keyboard-open .app-notice {
+  max-height: calc(var(--visual-viewport-height) - 16px - var(--safe-area-top));
+}
+
+/* Fixed multi-layer backgrounds and large live blurs are expensive during an
+   iOS touch scroll. The opaque fallbacks preserve the same visual language. */
+@media (max-width: 760px), (hover: none) and (pointer: coarse) {
+  :root {
+    --page-inline-gutter: 12px;
+    --floating-inline-gutter: max(6px, var(--safe-area-left), var(--safe-area-right));
+  }
+
+  body {
+    background-attachment: scroll;
+  }
+
+  body::before {
+    display: none;
+  }
+
+  .app-header,
+  .bottom-nav {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .app-header {
+    background: rgba(255, 253, 246, 0.97);
+  }
+
+  .bottom-nav {
+    background: rgba(255, 253, 246, 0.98);
+  }
+}
+
+@media (max-width: 520px) {
+  .bottom-nav {
+    bottom: max(5px, var(--safe-area-bottom));
+  }
+}
+
+@media (max-width: 360px) {
+  :root {
+    --page-inline-gutter: 9px;
+    --floating-inline-gutter: max(4px, var(--safe-area-left), var(--safe-area-right));
+  }
+}
+
+@media (orientation: landscape) and (max-height: 560px) {
+  #app {
+    padding-bottom: calc(82px + var(--safe-area-bottom));
+  }
+
+  .page {
+    padding-top: 12px;
+  }
+
+  .bottom-nav {
+    padding-block: 4px;
+  }
+
+  .bottom-nav button {
+    min-height: 48px;
   }
 }

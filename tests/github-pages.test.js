@@ -15,15 +15,18 @@ test("PWA shell remains portable under a GitHub Pages repository path", () => {
   assert.equal(/(?:href|src)="\/(?!\/)/.test(html), false);
   assert.equal(manifest.start_url, "./");
   assert.equal(manifest.scope, "./");
-  assert.match(sw, /caches\.match\("\.\/index\.html"\)/);
-  assert.match(sw, /wild-world-companion-v14/);
+  assert.match(sw, /const NAVIGATION_SHELL\s*=\s*new URL\("\.\/index\.html",\s*self\.location\.href\)\.href/);
+  assert.match(sw, /const CORE_ASSETS\s*=\s*\[[\s\S]*?\bNAVIGATION_SHELL\b/);
+  assert.match(sw, /event\.request\.mode === "navigate"[\s\S]*?caches\.open\(CACHE_NAME\)[\s\S]*?cache\.match\(NAVIGATION_SHELL\)/);
+  assert.doesNotMatch(sw, /caches\.match\(\s*["']\.\/index\.html["']\s*\)/);
+  assert.match(sw, /wild-world-companion-v15/);
 });
 
 test("iPhone home-screen metadata and local icons are present", () => {
   const html = read("index.html");
   assert.match(html, /apple-mobile-web-app-capable" content="yes"/);
   assert.match(html, /apple-mobile-web-app-title" content="となりノート"/);
-  assert.match(html, /apple-touch-icon" href="\.\/icon-192\.png"/);
+  assert.match(html, /apple-touch-icon" sizes="180x180" href="\.\/icon-180\.png"/);
 });
 
 test("static server can model a repository-path mount without host-root fallback", async () => {

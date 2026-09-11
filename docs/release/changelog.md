@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-09-11 — iPhone-first personal final candidate（再配備前）
+
+- 390×844 / 393×852 / 430×932を含む7 viewport向けに四辺safe-area、`svh` / `dvh`、16px form controls、44px touch targets、keyboard時のbottom navigation退避、recent-search overflow containmentを実装。
+- 日本語IME composition中のinput nodeを維持し、確定値を1回だけ描画するよう修正。Search / Collectionのquery、filter、detail元card、scrollを戻り操作とreload recoveryの両方で復元。
+- `visibilitychange` / `pageshow` / `focus` / `online`を250msで集約するsingle-flight resume coordinatorを追加。origin-stop offline→online、lazy module再取得、時計更新、UI session復元を回帰化。
+- state更新とBackup importを保存成功後commitへ変更し、QuotaExceededと不正/future importでmemory/LocalStorageを不変化。同一originのexclusive Web Lock内でstrict latest-read → mutation → saveし、古いin-memory snapshotによるcross-tab lost updateを修正。第3ページのholder下で異なる2 itemの同時writeを2件pendingにし、解放後に両方が残る決定的E2Eをinstalled Chrome 152 / managed WebKit 26.5でPASS。保存key `wildWorldCompanionState.v1`とschemaVersion 3は不変。iOS向けdownload anchor lifecycleも追加。
+- Service Worker v14→v15。install時の無条件`skipWaiting`を廃止した。旧v14画面にはv15更新noticeがないため、初回移行は全旧client終了後の次回起動で行う。v15画面から始まる将来更新向けにnotice、explicit `SKIP_WAITING`、controllerchangeの1回reload guardを実装し、scope相対canonical navigation shellとquery URL非cache化を追加。180px Apple touch iconもprecache。v14→v15のdurable LocalStorage保持を対象とし、旧sessionのroute/query/scroll移行は保証しない。
+- 最終ローカル実測はUnit 128/128、checkJs、ESLint、Build、Data、Provenance、Evidence、Static、Security、ImagesがPASS。既存E2Eはinstalled Chrome 152.0.7977.83 22/22（16,708.4848ms）、Edge 152.0.4191.66 22/22（16,644.6033ms）、managed WebKit 26.5 22/22（32,808.9665ms）。iPhone-focused E2Eはinstalled Chrome 20/20（36,526.2435ms）、managed WebKit 26.5 20/20（76,493.9532ms）をPASS。multi-tab排他と高速2回タップcaseも両engineで再PASSし、Pages subpathは5/5、local Lighthouse 13.4.1は91/100/100/100。
+- managed WebKitの途中runは19/20（origin停止中の接続ログ監視）と18/20（scroll/計測race）。origin停止期間限定のログ分類、viewport保持、最大scroll到達とSW install settle待ちで修正し、テストを弱めず最終20/20とした。
+- screen captureはChrome / managed WebKit各27/27 PASS。manifestは390×844 / 430×932の各13画面と390×500 keyboard相当1画面を記録し、native clear重複なし、通知と戻るボタンの26px間隔、keyboard navigation退避を確認。physical iPhone/Safari/Home Screen PWA、実keyboard/日本語IME、VoiceOver、Android実機は`NOT_RUN`。
+- CIへChromium / managed WebKitのiPhone-first 20-case gateを追加し、両engineの27-screen setを別artifactとしてupload。Pages workflowもdeploy前に両engineの20-case gateを要求する。workflow定義はunit/static検証済みだが、PR / main / Pages runは`NOT_RUN`。
+- Data Version `2026.09.03.3`、1,767 searchable records、保存key `wildWorldCompanionState.v1`、schemaVersion 3、Canonical値、Provenance、CONFLICTは変更なし。Supabase/Auth/Realtimeは導入していない。
+- Web Locks API非対応browserとSafari Lockdown Modeでのcross-tab排他は保証外。`storage` event / BroadcastChannelのみを排他制御とは扱わない。
+- Firefoxは通常権限・権限昇格の両方でapp assertion前に`spawn UNKNOWN`となり、`ENVIRONMENT_BLOCKED_BEFORE_APP_ASSERTIONS`。0/22のアプリFAIL/PASSとは扱わない。
+- 本項は個人用途の`IPHONE_FIRST_PERSONAL_FINAL_CANDIDATE`。PR、merge、GitHub Pages再配備、v15実公開URL検証は`NOT_RUN`で、一般公開向けRelease Readyや実機PASSを宣言しない。
+
 ## 2026-09-04 — GitHub Pages deployed and verified
 
 - Public repository [ashu211313-netizen/oi-mori-tonari-note](https://github.com/ashu211313-netizen/oi-mori-tonari-note)を作成し、PR CIを通して`main`へmerge。GitHub Actions custom workflowから[恒久HTTPS URL](https://ashu211313-netizen.github.io/oi-mori-tonari-note/)へ配備。

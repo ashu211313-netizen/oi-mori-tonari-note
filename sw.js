@@ -1,16 +1,20 @@
 const CACHE_PREFIX = "wild-world-companion-";
 const IMAGE_CACHE_PREFIX = "wild-world-images-";
-const CACHE_NAME = "wild-world-companion-v14";
+const CACHE_NAME = "wild-world-companion-v15";
 const IMAGE_CACHE_NAME = "wild-world-images-v1";
+const NAVIGATION_SHELL = new URL("./index.html", self.location.href).href;
+const STATIC_ASSET_PATH = /\.(?:avif|css|gif|html|jpe?g|js|json|mjs|png|svg|webmanifest|webp)$/i;
 const CORE_ASSETS = [
   "./",
-  "./index.html",
+  NAVIGATION_SHELL,
   "./manifest.webmanifest",
   "./icon.svg",
+  "./icon-180.png",
   "./icon-192.png",
   "./icon-512.png",
   "./src/styles.css",
   "./src/app.js",
+  "./src/lifecycle.js",
   "./src/data.js",
   "./src/availability.js",
   "./src/storage.js",
@@ -27,11 +31,15 @@ const CORE_ASSETS = [
 ];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil((async () => {
-    const cache = await caches.open(CACHE_NAME);
-    await cache.addAll(CORE_ASSETS);
-    await self.skipWaiting();
-  })());
+  // Keep the current client on one coherent asset generation. The new worker
+  // advances after every old client closes, or after a compatible current
+  // client explicitly sends SKIP_WAITING.
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE_ASSETS)));
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type !== "SKIP_WAITING") return;
+  event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener("activate", (event) => {
@@ -50,24 +58,49 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   if (new URL(event.request.url).origin !== self.location.origin) return;
   const url = new URL(event.request.url);
-  const isLocalImage = event.request.destination === "image" && url.pathname.includes("/assets/");
-  const targetCache = isLocalImage ? IMAGE_CACHE_NAME : CACHE_NAME;
-  event.respondWith(
-    caches.open(targetCache).then((cache) => cache.match(event.request).then(async (cached) => {
-      if (cached) return cached;
+
+  if (event.request.mode === "navigate") {
+    event.respondWith((async () => {
       try {
-        const response = await fetch(event.request);
-        if (response.status === 200 && response.type === "basic") {
-          const copy = response.clone();
-          event.waitUntil(cache.put(event.request, copy));
-        }
-        return response;
+        const cache = await caches.open(CACHE_NAME);
+        const shell = await cache.match(NAVIGATION_SHELL);
+        if (shell) return shell;
       } catch {
-        if (event.request.mode === "navigate") {
-          return caches.match("./index.html");
-        }
+        // If Cache Storage is unavailable, the live navigation can still work.
+      }
+      try {
+        return await fetch(event.request);
+      } catch {
         return new Response("Offline", { status: 503, statusText: "Offline" });
       }
-    }))
-  );
+    })());
+    return;
+  }
+
+  if (!STATIC_ASSET_PATH.test(url.pathname)) return;
+  const isLocalImage = event.request.destination === "image" && url.pathname.includes("/assets/");
+  const targetCache = isLocalImage ? IMAGE_CACHE_NAME : CACHE_NAME;
+  event.respondWith((async () => {
+    let cache = null;
+    try {
+      cache = await caches.open(targetCache);
+      const cached = await cache.match(event.request);
+      if (cached) return cached;
+    } catch {
+      // A Cache Storage failure must not prevent a successful network fetch.
+    }
+    try {
+      const response = await fetch(event.request);
+      if (cache && response.status === 200 && response.type === "basic") {
+        try {
+          await cache.put(event.request, response.clone());
+        } catch {
+          // Quota pressure may prevent runtime caching; still return the asset.
+        }
+      }
+      return response;
+    } catch {
+      return new Response("Offline", { status: 503, statusText: "Offline" });
+    }
+  })());
 });

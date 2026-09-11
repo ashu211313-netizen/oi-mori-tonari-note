@@ -18,13 +18,18 @@ import {
 import { allSearchableEntities } from "../src/universal-search.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const readJson = (relative) => JSON.parse(readFileSync(path.join(root, relative), "utf8"));
+const read = (relative) => readFileSync(path.join(root, relative), "utf8");
+const readJson = (relative) => JSON.parse(read(relative));
+const serviceWorkerCache = /^const CACHE_NAME\s*=\s*"([^"]+)"/m.exec(read("sw.js"))?.[1] ?? "UNKNOWN";
 const runNode = (args) => {
   const run = spawnSync(process.execPath, args, { cwd: root, encoding: "utf8", timeout: 180_000 });
+  const combinedOutput = `${run.stdout ?? ""}${run.stderr ?? ""}`;
+  const testCount = Number(/(?:^|\n)ℹ tests (\d+)/m.exec(combinedOutput)?.[1] ?? 0);
   return {
     result: run.status === 0 ? "PASS" : run.error?.code === "ETIMEDOUT" ? "TIMEOUT" : "FAIL",
     exitCode: run.status,
-    tail: `${run.stdout ?? ""}${run.stderr ?? ""}`.trim().split(/\r?\n/).slice(-8)
+    ...(testCount > 0 ? { testCount } : {}),
+    tail: combinedOutput.trim().split(/\r?\n/).slice(-8)
   };
 };
 const compactBrowser = (relative) => {
@@ -52,7 +57,7 @@ const coverage = (records, definitions) => Object.fromEntries(definitions.map(([
 
 const unitFiles = readdirSync(path.join(root, "tests")).filter((name) => name.endsWith(".test.js")).sort().map((name) => `tests/${name}`);
 const automatedGates = {
-  unit113: runNode(["--test", ...unitFiles]),
+  unit: runNode(["--test", ...unitFiles]),
   typecheck: runNode(["node_modules/typescript/bin/tsc", "-p", "jsconfig.json"]),
   lint: runNode(["node_modules/eslint/bin/eslint.js", "."]),
   data: runNode(["scripts/validate-data.mjs"]),
@@ -117,7 +122,7 @@ const report = {
   generatedAt: new Date().toISOString(),
   classification,
   dataVersion,
-  serviceWorkerCache: "wild-world-companion-v14",
+  serviceWorkerCache,
   beforeAfter: {
     acquisitionKnown: { before: 1255, after: expansionCounts.acquisitionCoveredItems },
     acquisitionUnknown: { before: 16, after: expansionCounts.acquisitionUnknownItems },
@@ -211,7 +216,7 @@ const report = {
 const output = path.join(root, "artifacts/data-audit/personal-final-report.json");
 mkdirSync(path.dirname(output), { recursive: true });
 writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`);
-const markdown = `# Personal Final Report — 2026-09-03\n\n## Classification\n\n**${classification}**\n\n個人用local/offline scopeの最終判定です。公開向けRelease Readyや全フィールド検証済みを意味しません。\n\n## Content delta\n\n| Metric | Before | After |\n|---|---:|---:|\n| Evidence-backed acquisition | 1,255 | ${expansionCounts.acquisitionCoveredItems.toLocaleString("ja-JP")} |\n| Acquisition UNKNOWN | 16 | ${expansionCounts.acquisitionUnknownItems} |\n| Explicit/categorical acquisition | 389 | ${explicitAcquisition} |\n| Price-only, seller unspecified | 866 | ${expansionCounts.purchasePlaceUnspecifiedItems} |\n| Event reward text | 9/12 | ${eventList.filter((event) => event.rewardText).length}/12 |\n| Event known location | 0/12 | ${eventList.filter((event) => event.location).length}/12 |\n| Events with linked reward items | 2/12 | ${eventList.filter((event) => event.rewardItemIds?.length).length}/12 |\n| Expansion event discrepancies | 0 | ${expansionConflictRecords.length} |\n| Searchable records | 1,767 | ${allSearchableEntities.length.toLocaleString("ja-JP")} |\n\n## Final gates\n\n- Unit: 113/113 PASS; TypeScript checkJs, ESLint, Data, Provenance, Evidence, Static, Security, Images: PASS.\n- Chrome / Edge / managed WebKit: 22/22 PASS each. Managed WebKit is not physical Safari.\n- Lighthouse: Performance ${lighthouse.scores.performance}, Accessibility ${lighthouse.scores.accessibility}, Best Practices ${lighthouse.scores["best-practices"]}, SEO ${lighthouse.scores.seo}.\n- Migration/backup: ${migration.cases.filter((entry) => entry.result === "PASS").length}/${migration.cases.length} PASS; key \`wildWorldCompanionState.v1\`, schema 3.\n- Service Worker: \`wild-world-companion-v13\`; offline origin-stop, cache update, saved state preservation included in E2E.\n\n## Truthful limits\n\n- Core claim coverage 468/468 is not verification. JP audited-independent verification remains ${core.withJpIndependentVerification}/468; strict public blocker metric ${core.releaseBlocking}.\n- Core CONFLICT ${core.conflicts} fields / ${dataDiscrepancies.length} registry and expansion event CONFLICT ${expansionConflictRecords.length} remain visible. Canonical core changes: 0.\n- Residents remain 148 records plus 2 unresolved/excluded names. Real images remain 0; all ${allSearchableEntities.length.toLocaleString("ja-JP")} records use honest original fallback graphics.\n- Firefox is environment-blocked before app assertions. Physical Safari/iOS/Android, real screen reader and public HTTPS were not run and are not claimed.\n`;
-writeFileSync(path.join(root, "PERSONAL_FINAL_REPORT.md"), markdown.replaceAll("wild-world-companion-v13", "wild-world-companion-v14"));
+const markdown = `# Personal Final Report — 2026-09-03\n\n## Classification\n\n**${classification}**\n\n個人用local/offline scopeの最終判定です。公開向けRelease Readyや全フィールド検証済みを意味しません。\n\n## Content delta\n\n| Metric | Before | After |\n|---|---:|---:|\n| Evidence-backed acquisition | 1,255 | ${expansionCounts.acquisitionCoveredItems.toLocaleString("ja-JP")} |\n| Acquisition UNKNOWN | 16 | ${expansionCounts.acquisitionUnknownItems} |\n| Explicit/categorical acquisition | 389 | ${explicitAcquisition} |\n| Price-only, seller unspecified | 866 | ${expansionCounts.purchasePlaceUnspecifiedItems} |\n| Event reward text | 9/12 | ${eventList.filter((event) => event.rewardText).length}/12 |\n| Event known location | 0/12 | ${eventList.filter((event) => event.location).length}/12 |\n| Events with linked reward items | 2/12 | ${eventList.filter((event) => event.rewardItemIds?.length).length}/12 |\n| Expansion event discrepancies | 0 | ${expansionConflictRecords.length} |\n| Searchable records | 1,767 | ${allSearchableEntities.length.toLocaleString("ja-JP")} |\n\n## Final gates\n\n- Unit: ${automatedGates.unit.testCount}/${automatedGates.unit.testCount} PASS; TypeScript checkJs, ESLint, Data, Provenance, Evidence, Static, Security, Images: PASS.\n- Chrome / Edge / managed WebKit: 22/22 PASS each. Managed WebKit is not physical Safari.\n- Lighthouse: Performance ${lighthouse.scores.performance}, Accessibility ${lighthouse.scores.accessibility}, Best Practices ${lighthouse.scores["best-practices"]}, SEO ${lighthouse.scores.seo}.\n- Migration/backup: ${migration.cases.filter((entry) => entry.result === "PASS").length}/${migration.cases.length} PASS; key \`wildWorldCompanionState.v1\`, schema 3.\n- Service Worker: \`${serviceWorkerCache}\`; offline origin-stop and the v15-page future-update contract are included in E2E. Physical v14→v15 close/reopen migration is \`NOT_RUN\`; durable LocalStorage is retained by design, while the old v14 session's route/query/scroll is not guaranteed.\n\n## Truthful limits\n\n- Core claim coverage 468/468 is not verification. JP audited-independent verification remains ${core.withJpIndependentVerification}/468; strict public blocker metric ${core.releaseBlocking}.\n- Core CONFLICT ${core.conflicts} fields / ${dataDiscrepancies.length} registry and expansion event CONFLICT ${expansionConflictRecords.length} remain visible. Canonical core changes: 0.\n- Residents remain 148 records plus 2 unresolved/excluded names. Real images remain 0; all ${allSearchableEntities.length.toLocaleString("ja-JP")} records use honest original fallback graphics.\n- Firefox is environment-blocked before app assertions. Physical Safari/iOS/Android and real screen reader were not run and are not claimed. Current public HTTPS verification is recorded separately from this historical personal-content report.\n`;
+writeFileSync(path.join(root, "PERSONAL_FINAL_REPORT.md"), markdown.replaceAll("wild-world-companion-v13", serviceWorkerCache));
 console.log(JSON.stringify({ classification, gates: report.gates, beforeAfter: report.beforeAfter }, null, 2));
 if (classification !== "PERSONAL_FINAL_COMPLETE") process.exitCode = 1;

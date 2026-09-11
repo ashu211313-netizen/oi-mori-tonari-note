@@ -16,6 +16,7 @@ const rootFiles = [
   "index.html",
   "manifest.webmanifest",
   "icon.svg",
+  "icon-180.png",
   "icon-192.png",
   "icon-512.png",
   "sw.js"
@@ -58,5 +59,5 @@ console.log(JSON.stringify({
   output,
   files: files.length,
   bytes: files.reduce((total, file) => total + statSync(file).size, 0),
-  serviceWorker: "wild-world-companion-v14"
+  serviceWorker: "wild-world-companion-v15"
 }, null, 2));

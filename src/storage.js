@@ -1,4 +1,6 @@
 const KEY = "wildWorldCompanionState.v1";
+export const STORAGE_KEY = KEY;
+export const STORAGE_LOCK_NAME = `${KEY}.write`;
 const VALID_WEATHER = new Set(["unknown", "dry", "rain", "snow"]);
 const VALID_CLOCK_MODES = new Set(["real", "custom", "offset"]);
 const MAX_IMPORT_BYTES = 2_000_000;
@@ -34,7 +36,7 @@ const objectKeys = [
 ];
 
 function cloneDefault() {
-  return structuredClone(defaultState);
+  return JSON.parse(JSON.stringify(defaultState));
 }
 
 function isPlainRecord(value) {
@@ -176,8 +178,39 @@ export function loadState() {
   }
 }
 
+export function readStoredStateStrict() {
+  const raw = localStorage.getItem(KEY);
+  if (raw === null) return cloneDefault();
+  return validateImportedState(JSON.parse(raw));
+}
+
 export function saveState(state) {
-  localStorage.setItem(KEY, JSON.stringify(normalizeState(state)));
+  const normalized = normalizeState(state);
+  localStorage.setItem(KEY, JSON.stringify(normalized));
+  return normalized;
+}
+
+/** @template T @param {() => Promise<T> | T} operation @returns {Promise<T>} */
+export function withStateStorageLock(operation) {
+  const locks = globalThis.navigator?.locks;
+  if (typeof locks?.request === "function") {
+    return locks.request(STORAGE_LOCK_NAME, { mode: "exclusive" }, operation);
+  }
+  return Promise.resolve().then(operation);
+}
+
+/** @param {(draft: any) => void} mutator */
+export function mutateStoredState(mutator) {
+  return withStateStorageLock(() => {
+    const draft = readStoredStateStrict();
+    mutator(draft);
+    return saveState(draft);
+  });
+}
+
+/** @param {any} nextState */
+export function replaceStoredState(nextState) {
+  return withStateStorageLock(() => saveState(validateImportedState(nextState)));
 }
 
 export function serializeState(state) {
@@ -189,13 +222,16 @@ export function parseImportedStateText(text) {
 }
 
 export function exportState(state) {
-  const blob = new Blob([serializeState(state)], { type: "application/json" });
+  const blob = new Blob([serializeState(state)], { type: "application/json;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = "wild-world-companion-backup.json";
+  anchor.hidden = true;
+  document.body.append(anchor);
   anchor.click();
-  setTimeout(() => URL.revokeObjectURL(url), 0);
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1_000);
 }
 
 export function importStateFile(file) {
