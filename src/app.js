@@ -403,6 +403,11 @@ if ("serviceWorker" in navigator) {
 
 /** @param {string} next @param {{ restoreScroll?: boolean, restoreAnchor?: boolean }} [options] */
 function setRoute(next, options = {}) {
+  const active = document.activeElement;
+  if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement || active instanceof HTMLSelectElement) {
+    active.blur();
+    updateVisualViewport();
+  }
   pendingUiScrollRestore = null;
   routeScrollPositions.set(route, window.scrollY);
   route = next;
@@ -1784,7 +1789,9 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") resumeCoordinator.schedule("visibilitychange");
   else scheduleClockTick();
 });
-window.addEventListener("pageshow", () => resumeCoordinator.schedule("pageshow"));
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted) resumeCoordinator.schedule("pageshow");
+});
 window.addEventListener("focus", () => resumeCoordinator.schedule("focus"));
 window.addEventListener("online", () => {
   connectionOnline = true;
