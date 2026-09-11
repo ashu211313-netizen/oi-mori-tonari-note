@@ -1,12 +1,12 @@
 # Verification log
 
-## 2026-09-11 iPhone-first candidate — local final
+## 2026-09-11 iPhone-first final — merged / deployed v15
 
-環境: Windows、Data Version `2026.09.03.3`、Service Worker v15、save key `wildWorldCompanionState.v1`、schema 3。PR / merge / Pages v15 / live verification前のローカル候補。
+環境: Windows、Data Version `2026.09.03.3`、Service Worker v15、save key `wildWorldCompanionState.v1`、schema 3。ローカルgateに加え、PR merge、main CI、Pages deployment、公開HTTPSのlive verificationまで完了。
 
 | Gate | Result |
 |---|---|
-| Unit / checkJs / ESLint / Build | PASS — 128/128 / PASS / PASS / PASS |
+| Current branch Unit / checkJs / ESLint / Build | PASS — 130/130 / PASS / PASS / PASS。live/public validator回帰2件を追加 |
 | Data / Provenance / Evidence / Static / Security / Images | PASS / PASS / PASS / PASS / PASS / PASS |
 | Existing installed Chrome 152.0.7977.83 E2E | PASS — 22/22、16,708.4848ms |
 | Existing Edge 152.0.4191.66 E2E | PASS — 22/22、16,644.6033ms |
@@ -21,10 +21,19 @@
 | Local Lighthouse 13.4.1 | PASS — 91 / 100 / 100 / 100 |
 | CI / Pages definition | PASS（static）— Chromium/WebKit focused各20件。CI screenshotsはengine別27枚artifact |
 | Data / save compatibility | UNCHANGED — searchable 1,767、Canonical 0変更、Data Version / key / schema不変 |
+| PR / merge | PASS — PR #3、2026-09-11T08:45:02Z merge、merge commit `aa91a5462694831941c17e4856fb12916a9b2d8f` |
+| main CI | PASS — GitHub Actions run `34580717627`、conclusion `success`、deployment時点のUnit 128/128 |
+| GitHub Pages deployment | PASS — GitHub Actions run `34580717646`、conclusion `success` |
+| Public live verifier | PASS — 13/13、2026-09-11T09:14:43Z。installed Chrome 152 / managed WebKit 26.5、390×844 / 430×932、horizontal overflow 0px、undersized control / input 0 |
+| Public precache / exclusions | PASS — precache 22/22 HTTP 200、非公開5 pathがHTTP 404 |
+| Public offline / persistence | PASS — installed ChromeでService Worker shellのoffline動作とschema 3 state保持 |
+| Public HTTPS contract | `PASS_HTTP_CONTRACT` — 5/5、2026-09-11T09:17:33Z。meta CSP / `no-referrer`を確認。GitHub Pagesのresponse headerはhost-managed |
+| Public v15 Lighthouse 13.4.1 | PASS — 97 / 100 / 100 / 100。local v15の91 / 100 / 100 / 100、historical public v14の100 / 100 / 100 / 100とは別計測 |
+| Staged v14→v15 | `PASS_WITH_HARNESS_RECOVERY` — 旧v14 clientは安定し、v14 / v15 cache共存を観測。元harnessは再openが早すぎてtimeoutしたことを記録。同じpersistent profileで回復後、v15 active、v15 cacheのみ、raw state byte-identical、無関係sentinel保持を確認 |
 | Firefox | `ENVIRONMENT_BLOCKED_BEFORE_APP_ASSERTIONS` — 通常・権限昇格runとも`spawn UNKNOWN`。0/22のアプリFAIL/PASSではない |
-| Physical iPhone/Safari/Home Screen/real keyboard/IME/VoiceOver/Android | `NOT_RUN` / NOT CLAIMED |
+| Physical iPhone/Safari/Home Screen/real keyboard/IME/safe-area/resume/offline/Backup/VoiceOver/macOS Safari/Android | `NOT_RUN` / NOT CLAIMED |
 | Physical v14→v15 migration | NOT_RUN — Backup→全Safari/PWA client終了→オンライン再起動が必要。durable state保持対象、旧route/query/scroll非保証 |
-| PR / merge / Pages v15 deployment / public live | `NOT_RUN` — 最終配備後に追記 |
+| Final classification | `IPHONE_FIRST_PERSONAL_FINAL_COMPLETE` — `EMULATED_VERIFIED` / `LIVE_PAGES_VERIFIED`。`PHYSICAL_NOT_RUN` / NOT CLAIMED |
 
 ## 2026-09-04 GitHub Pages deployment pass（historical v14）
 

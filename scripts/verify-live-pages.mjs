@@ -367,6 +367,7 @@ async function browserPass(label, browserType, { contextOptions = {}, verifyOffl
         if (runtime.httpFailures.length) throw new Error(`${viewportLabel}: HTTP failures: ${runtime.httpFailures.join("; ")}`);
         if (runtime.requestFailures.length) throw new Error(`${viewportLabel}: request failures: ${runtime.requestFailures.map(formatRequestFailure).join("; ")}`);
         let expectedOfflineFailures = null;
+        let offlineEvidence = null;
         if (verifyOffline && viewport.width === 390) {
           const offlineStart = {
             console: runtime.consoleErrors.length,
@@ -374,11 +375,31 @@ async function browserPass(label, browserType, { contextOptions = {}, verifyOffl
             request: runtime.requestFailures.length
           };
           await context.setOffline(true);
+          // Playwright's installed-Chrome transport reports navigator.onLine=false
+          // to the current document, but a Service-Worker-served reload can start
+          // the replacement document with navigator.onLine=true even while all
+          // network access is still blocked. Assert the live offline event/UI before
+          // reload, and prove the transport boundary with an uncached non-static URL.
+          await page.locator('#app[data-online="false"]').waitFor();
+          const networkProbe = await page.evaluate(async (probeUrl) => {
+            try {
+              const response = await fetch(probeUrl, { cache: "no-store" });
+              return { blocked: false, status: response.status, error: null };
+            } catch (error) {
+              return { blocked: true, status: null, error: String(error?.message ?? error) };
+            }
+          }, new URL(`__offline-network-probe-${Date.now()}`, url).href);
+          if (!networkProbe.blocked) throw new Error(`${viewportLabel}: offline network probe returned HTTP ${networkProbe.status}`);
           await page.reload({ waitUntil: "domcontentloaded" });
           await page.getByRole("heading", { name: "おい森 となりノート" }).waitFor();
-          await page.locator('#app[data-online="false"]').waitFor();
           const saved = await page.evaluate((storageKey) => JSON.parse(localStorage.getItem(storageKey)), STORAGE_KEY);
           if (saved?.schemaVersion !== 3 || !saved?.favorites?.["fish-shark"]) throw new Error(`${viewportLabel}: saved state lost`);
+          const reloadConnectivity = await page.evaluate(() => ({
+            navigatorOnline: navigator.onLine,
+            appOnline: document.querySelector("#app")?.getAttribute("data-online") ?? null,
+            controlled: Boolean(navigator.serviceWorker.controller)
+          }));
+          if (!reloadConnectivity.controlled) throw new Error(`${viewportLabel}: offline reload lost Service Worker control`);
           const offlineEnd = {
             console: runtime.consoleErrors.length,
             http: runtime.httpFailures.length,
@@ -399,6 +420,14 @@ async function browserPass(label, browserType, { contextOptions = {}, verifyOffl
           expectedOfflineFailures = {
             consoleErrors: offlineConsoleErrors,
             requestFailures: offlineRequestFailures.map(formatRequestFailure)
+          };
+          offlineEvidence = {
+            currentDocumentOfflineUi: true,
+            uncachedNetworkProbeBlocked: networkProbe.blocked,
+            networkProbeError: networkProbe.error,
+            serviceWorkerReloadRendered: true,
+            savedStatePreserved: true,
+            reloadConnectivity
           };
           await context.setOffline(false);
           await page.locator('#app[data-online="true"]').waitFor();
@@ -436,7 +465,8 @@ async function browserPass(label, browserType, { contextOptions = {}, verifyOffl
           install,
           layouts,
           offlineReload: verifyOffline && viewport.width === 390,
-          expectedOfflineFailures
+          expectedOfflineFailures,
+          offlineEvidence
         });
       } finally {
         await context.close();
@@ -480,7 +510,8 @@ const report = {
     "390px/430px runs are automated CSS-viewport and touch emulation; they are not physical iPhone, iOS Safari, or Home Screen PWA PASS.",
     "Managed WebKit with an iPhone descriptor is browser-engine evidence only and is not a physical iPhone/Safari PASS.",
     "Managed WebKit used its toolchain TLS-trust bypass because this Windows WebKit bundle cannot read the host trust store; Node and installed Chrome validated the real HTTPS certificate without bypass.",
-    "Live offline reload was validated in installed Chrome. Managed WebKit validated the live online reload and its separate local repository-path suite validated offline behavior; live WebKit offline reload hit a tool-internal error and is not claimed as a live WebKit offline PASS.",
+    "Live offline reload was validated in installed Chrome with an uncached network-failure probe, Service Worker shell rendering, and schema-3 state retention. Playwright may initialize navigator.onLine=true in the replacement Service-Worker-served document, so the offline UI indicator is asserted before reload instead of misreporting that harness value as physical-device evidence.",
+    "Managed WebKit validated the live online reload and its separate local repository-path suite validated offline behavior; live WebKit offline reload hit a tool-internal error and is not claimed as a live WebKit offline PASS.",
     "GitHub Pages does not provide repository-controlled custom response headers; executable restrictions are enforced by the document CSP meta tag.",
     "PC and iPhone browser-local state are separate; use the existing export/import flow to transfer progress."
   ]

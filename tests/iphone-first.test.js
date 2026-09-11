@@ -98,3 +98,21 @@ test("pull requests and Pages deployment run the iPhone-first browser gate", () 
   assert.match(pages, /pnpm run test:e2e/);
   assert.match(pages, /pnpm run test:pages/);
 });
+
+test("live offline verification proves the network boundary without trusting reload navigator.onLine", () => {
+  const verifier = read("scripts/verify-live-pages.mjs");
+  assert.match(verifier, /#app\[data-online="false"\][\s\S]*__offline-network-probe-/);
+  assert.match(verifier, /if \(!networkProbe\.blocked\) throw new Error/);
+  assert.match(verifier, /serviceWorkerReloadRendered:\s*true/);
+  assert.match(verifier, /savedStatePreserved:\s*true/);
+  assert.match(verifier, /offline reload lost Service Worker control/);
+});
+
+test("public HTTPS verification models GitHub Pages host controls without hiding their limits", () => {
+  const verifier = read("scripts/verify-public-https.mjs");
+  assert.match(verifier, /hostname\.endsWith\("\.github\.io"\)/);
+  assert.match(verifier, /GitHub Pages HSTS plus repository-controlled self-only document CSP/);
+  assert.match(verifier, /maxAge > 600/);
+  assert.match(verifier, /updateViaCache=none and explicit update\(\)/);
+  assert.match(verifier, /cannot provide frame-ancestors, X-Content-Type-Options, or Permissions-Policy/);
+});

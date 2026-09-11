@@ -2,13 +2,15 @@
 
 更新日: 2026-09-11
 対象: iPhone-first responsive shell、全主要画面、入力・navigation
-状態: ローカル自動検証および screenshot capture 完了。physical iPhone は未実施。
+状態: ローカル自動検証、screenshot capture、公開Pages live検証完了。physical iPhoneは未実施。
 
 ## 結論
 
 専用 layout contract は 7 viewport × 9画面群、合計63の route / viewport 組合せで PASS した。全組合せで horizontal overflow は 1 CSS px 以下、可視操作要素は 44×44 CSS px 以上、可視 form control は 16px 以上、bottom navigation は通常時に viewport 内、最終 content は navigation に覆われないことを確認した。
 
 390×844 と 430×932 はさらに主要導線を通し、各13画面の screenshot を生成した。390×500 の1枚は software keyboard 表示後の visual viewport 相当を検証するもので、実 iPhone keyboard screenshot ではない。
+
+公開v15でも2026-09-11T09:14:43Zのlive verifierが13/13 PASSした。installed Chrome 152とmanaged WebKit 26.5を390×844 / 430×932で使用し、horizontal overflow 0px、undersized control / input 0を実測した。managed WebKitはSafariではなく、これをphysical iPhoneのgeometry、safe-area、keyboard、回転のPASSとは扱わない。
 
 ## Baseline → after
 
@@ -111,10 +113,16 @@ CIでは同じcaptureをChromium、managed WebKitの順に実行し、`iphone-fi
 | Screenshot runner — managed WebKit 26.5 | 27/27 PASS |
 | Focused iPhone 20-case suite — managed WebKit 26.5 | 20/20 PASS、141,474.6255ms |
 | Local Lighthouse 13.4.1 | 91 / 100 / 100 / 100 |
+| Public v15 live verifier — Chrome 152 / managed WebKit 26.5 | 13/13 PASS、2026-09-11T09:14:43Z。390×844 / 430×932、overflow 0px、undersized control / input 0 |
+| Public v15 Lighthouse 13.4.1 | 97 / 100 / 100 / 100 |
 | Physical iPhone Safari 390 / 430 class | `NOT_RUN` |
 | 実 iOS safe-area / rotation | `NOT_RUN` |
 | 実 iOS software keyboard / 日本語 IME | `NOT_RUN` |
+| 実 iOS background / resume / offline cold start | `NOT_RUN` |
+| 実Safari Files UIでのBackup | `NOT_RUN` |
 | VoiceOver | `NOT_RUN` |
+| macOS Safari | `NOT_RUN` |
+| Android実機 | `NOT_RUN` |
 
 managed WebKitのfocused suiteは最終20/20だが、physical Safari PASSの代替ではない。最終PASS前の19/20はorigin停止中の既知接続ログ分類、18/20はscroll / install settle前の計測raceだった。ログ分類をorigin停止期間だけに限定し、viewport保持、最大scroll到達、Service Worker install settleを実装して、assertionを弱めず解消した。390 / 430というCSS viewport classの検証を、特定iPhone実機モデルのPASSとして扱わない。
 
@@ -127,4 +135,10 @@ managed WebKitのfocused suiteは最終20/20だが、physical Safari PASSの代�
 
 ## 公開版
 
-PR / merge 後の GitHub Pages で、390 / 430 geometry、console / HTTP failure、Service Worker v15、offline reload、list return、Backup / Collection persistence を再確認する必要がある。本書作成時点では結果がないため値を置かない。**最終配備後に追記**する。
+PR #3は2026-09-11T08:45:02Zにmergeされ、merge commitは`aa91a5462694831941c17e4856fb12916a9b2d8f`。main CI run `34580717627`とPages run `34580717646`は`success`だった。main CIのUnit 128/128はdeployment時点の履歴であり、live/public validator回帰2件を加えた現行branchの130/130と区別する。公開live verifierは上記のとおり13/13 PASSし、precache 22/22 HTTP 200、非公開5 path HTTP 404、installed Chromeでのoffline Service Worker shellとschema 3 state保持も確認した。
+
+HTTPS validatorは2026-09-11T09:17:33Zに5/5 `PASS_HTTP_CONTRACT`。meta CSPと`no-referrer`を確認した。GitHub Pagesのresponse headerはhost-managedである。公開v15 Lighthouse 13.4.1は97 / 100 / 100 / 100。2026-09-04公開v14の100 / 100 / 100 / 100とローカルv15の91 / 100 / 100 / 100は別履歴として保持する。
+
+staged v14→v15は`PASS_WITH_HARNESS_RECOVERY`。旧v14 client安定とv14 / v15 cache共存を観測した後、元harnessは再openが早すぎてtimeoutした。同じpersistent profileで回復後、v15 active、v15 cacheのみ、raw state byte-identical、無関係sentinel保持を確認した。timeoutを隠さず、physical Safari / Home Screen PWAのPASSへ読み替えない。
+
+最終分類は`IPHONE_FIRST_PERSONAL_FINAL_COMPLETE`（`EMULATED_VERIFIED` / `LIVE_PAGES_VERIFIED`）。physical iPhone / Safari / Home Screen / real keyboard / IME / safe-area / resume / offline / Backup / VoiceOver / macOS Safari / Androidは`PHYSICAL_NOT_RUN` / NOT CLAIMEDである。

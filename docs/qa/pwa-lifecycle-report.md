@@ -2,7 +2,7 @@
 
 更新日: 2026-09-11
 対象: Service Worker v15 と iPhone-first lifecycle / persistence 変更
-状態: ローカル自動検証済み。実 iOS と再配備後の公開検証は未完了。
+状態: ローカル自動検証、merge、GitHub Pages再配備、公開live検証済み。実iOSは未実施。
 
 ## 解決した failure mode
 
@@ -53,6 +53,8 @@ E2E では4 event を連続発火し、recovery count がちょうど +1、rende
 - durable LocalStorage `wildWorldCompanionState.v1`とschemaVersion 3は保持対象である。旧v14セッションのroute / query / scrollは、旧画面側に移行snapshot機構がないため保証しない。
 - この手順のphysical iPhone Safari / Home Screen PWAでの実行は`NOT_RUN`であり、ローカル自動試験を実機PASSへ読み替えない。
 
+公開originを使ったstaged検証は`PASS_WITH_HARNESS_RECOVERY`だった。旧v14 clientが安定したままv14 / v15 cacheが共存することを観測した後、元harnessは再openが早すぎてtimeoutした。同じpersistent profileで回復を続け、v15 active、v15 cacheのみ、raw LocalStorage stateがbyte-identical、無関係sentinelが保持されることを確認した。timeoutは記録から除外せず、この結果をphysical Safari / Home Screen PWAのPASSとは扱わない。
+
 ### Fetch と cache mismatch
 
 - navigation request は `new URL("./index.html", self.location.href)` で得た scope 相対 shell key を読む。
@@ -100,10 +102,13 @@ focused E2E は network emulation だけでなく、最初の online load と Se
 | Focused iPhone E2E / installed Chrome 152 | 20/20 PASS — 31,769.8257ms |
 | 通常 E2E / installed Chrome | 22/22 PASS |
 | Pages artifact E2E | 5/5 PASS |
-| Unit / contract 全体 | 128/128 PASS |
+| Current branch Unit / contract 全体 | 130/130 PASS — live/public validator回帰2件を含む。main CI deployment時点は128/128 |
 | managed WebKit screenshot render | 27/27 PASS |
 | Focused iPhone E2E / managed WebKit 26.5 | 20/20 PASS — 141,474.6255ms |
 | Local Lighthouse 13.4.1 | 91 / 100 / 100 / 100 |
+| Public v15 live verifier | 13/13 PASS — 2026-09-11T09:14:43Z |
+| Public v15 HTTPS validator | 5/5 `PASS_HTTP_CONTRACT` — 2026-09-11T09:17:33Z |
+| Public v15 Lighthouse 13.4.1 | 97 / 100 / 100 / 100 |
 
 managed WebKitの中間runは19/20（origin停止中の接続ログを通常failureとして監視）と18/20（scroll / install settle前の計測race）だった。予期ログをorigin停止期間だけに限定し、resume renderでviewportを保持し、最大scroll到達とService Worker install完了を待つよう修正した。failure assertion自体は維持したまま、最終単独フルrun 20/20を確認した。
 
@@ -124,7 +129,12 @@ managed WebKitの中間runは19/20（origin停止中の接続ログを通常fail
 | iOS による process eviction / memory pressure 後の cold resume | `NOT_RUN` |
 | ホーム画面PWAでの実v14→v15 close/reopen移行、および将来版のupdate prompt / controller handoff | `NOT_RUN` |
 | 実 iOS software keyboard / 日本語 IME | `NOT_RUN` |
+| 実 iOS safe-area / rotation | `NOT_RUN` |
+| 実 iOS offline cold start / OS再起動 | `NOT_RUN` |
+| 実Safari Files UIでのBackup | `NOT_RUN` |
 | VoiceOver | `NOT_RUN` |
+| macOS Safari | `NOT_RUN` |
+| Android実機 | `NOT_RUN` |
 | Web Locks非対応browser / Safari Lockdown Modeでのcross-tab排他 | `OUT_OF_GUARANTEE` |
 
 automated Chrome / managed WebKit / DOM event simulation の PASS を上記の実機 PASS として扱わない。
@@ -133,4 +143,10 @@ Web Locks APIが使用できない場合も単一タブ内のqueueと通常のLo
 
 ## 公開配備
 
-PR番号、merge SHA、GitHub Actions / Pages run、公開HTTPS上のcache name、precache URL、offline reload、v14→v15の全旧client終了後移行、v15以降のupdate handoff、Backup / Collection persistenceは本書作成時点では再配備前のため記録しない。**最終配備後に追記**する。
+PR #3は2026-09-11T08:45:02Zにmergeされ、merge commitは`aa91a5462694831941c17e4856fb12916a9b2d8f`。main CI run `34580717627`とPages run `34580717646`はいずれも`success`だった。main CIのUnit 128/128はdeployment時点の履歴で、live/public validator回帰2件を含む現行branchの130/130と区別する。
+
+公開live verifierは2026-09-11T09:14:43Zに13/13 PASS。installed Chrome 152とmanaged WebKit 26.5を390×844 / 430×932で使用し、horizontal overflow 0px、undersized control / input 0、precache 22/22 HTTP 200、非公開5 path HTTP 404を確認した。installed Chromeではoffline Service Worker shellとschema 3 state保持も確認した。managed WebKitはSafariではない。
+
+HTTPS validatorは2026-09-11T09:17:33Zに5/5 `PASS_HTTP_CONTRACT`で、meta CSPと`no-referrer`を確認した。GitHub Pagesのresponse headerはhost-managedであり、repositoryが任意に設定したheader policyとして主張しない。公開v15 Lighthouse 13.4.1は97 / 100 / 100 / 100。2026-09-04公開v14の100 / 100 / 100 / 100とローカルv15の91 / 100 / 100 / 100は別の履歴として保持する。
+
+最終分類は`IPHONE_FIRST_PERSONAL_FINAL_COMPLETE`（`EMULATED_VERIFIED` / `LIVE_PAGES_VERIFIED`）。physical iPhone / Safari / Home Screen PWAを含む実機項目は`PHYSICAL_NOT_RUN` / NOT CLAIMEDである。

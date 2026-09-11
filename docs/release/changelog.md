@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-09-11 — iPhone-first personal final deployed and live verified
+
+- [PR #3](https://github.com/ashu211313-netizen/oi-mori-tonari-note/pull/3)を2026-09-11T08:45:02Zにsquash merge。merge SHAは`aa91a5462694831941c17e4856fb12916a9b2d8f`。[main CI run 34580717627](https://github.com/ashu211313-netizen/oi-mori-tonari-note/actions/runs/34580717627)と[Pages run 34580717646](https://github.com/ashu211313-netizen/oi-mori-tonari-note/actions/runs/34580717646)はいずれもsuccess。
+- [恒久HTTPS URL](https://ashu211313-netizen.github.io/oi-mori-tonari-note/)へService Worker v15を配備。live functional gateは2026-09-11T09:14:43Zに13/13 PASS、HTTPS contractは2026-09-11T09:17:33Zに5/5 `PASS_HTTP_CONTRACT`。2026-09-11のlive Lighthouse 13.4.1は97 / 100 / 100 / 100。
+- 公開v14から開始したstaged migrationは最初の一発harnessがtimeoutしたため、その実行をPASSとはしない。同一browser profileのrecovery inspectionでv15 active、v14 cache削除、`wildWorldCompanionState.v1` raw state byte-identical、無関係LocalStorage sentinel保持を確認し、総合結果を`PASS_WITH_HARNESS_RECOVERY`とした。
+- 最終判定は個人用途の`IPHONE_FIRST_PERSONAL_FINAL_COMPLETE`。scopeは`EMULATED_VERIFIED / LIVE_PAGES_VERIFIED`、物理iPhone/Safari、Home Screen PWA、実keyboard/日本語IME、実background/resume、VoiceOver、Android実機は`PHYSICAL_NOT_RUN / NOT CLAIMED`。managed WebKitをSafari実機PASSへ読み替えない。
+- Firefoxはapp assertion前の`spawn UNKNOWN`により`ENVIRONMENT_BLOCKED_BEFORE_APP_ASSERTIONS`。Web Locks非対応browserとSafari Lockdown Modeでのcross-tab排他は`OUT_OF_GUARANTEE`を維持。
+- Core claim coverage 468/468はverifiedではない。JP audited-independent 14/468、strict public blocker 454、SINGLE_SOURCE 278、CORROBORATED 167、CONFLICT 9 fields / 6 registry、Canonical変更0を維持。real imageは0で、honest fallbackは1,767。
+- GitHub Pagesはrepository-controlled custom response headersを提供しないため、document CSP/no-referrer metaとGitHub HSTSを使用。2026-09-04のv14配備記録は下記に履歴として保持する。
+
 ## 2026-09-11 — iPhone-first personal final candidate（再配備前）
 
 - 390×844 / 393×852 / 430×932を含む7 viewport向けに四辺safe-area、`svh` / `dvh`、16px form controls、44px touch targets、keyboard時のbottom navigation退避、recent-search overflow containmentを実装。

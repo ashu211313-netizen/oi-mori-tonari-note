@@ -1,14 +1,24 @@
 # iPhone-first QA report
 
 更新日: 2026-09-11
-対象: GitHub Pages 再配備前のローカル候補
-判定範囲: iPhone 向け実装と自動回帰検証。実機検証および公開後検証は含めない。
+対象: merge commit `aa91a5462694831941c17e4856fb12916a9b2d8f` のGitHub Pages v15
+判定範囲: iPhone向け実装、自動回帰検証、公開Pages検証。physical device検証は含めない。
 
 ## 結論
 
 390px / 430px を中心とする iPhone-first の実装は、installed Chrome 152 と managed WebKit 26.5 の focused suite 各20/20、および両engineの画面証跡各27/27を通過した。入力中の日本語 IME、safe-area、software keyboard 相当の viewport 縮小、background / resume のイベント集中、offline から online への復帰、Service Worker 更新、Backup、Collection 永続化、list → detail → back の状態復元に専用回帰テストを追加した。
 
-ただし、PR / merge、GitHub Pages 再配備、公開 URL 再検証、および physical iPhone Safari / ホーム画面 PWA / 実 software keyboard / VoiceOver は本書作成時点では完了していない。このローカル結果だけで `IPHONE_FIRST_PERSONAL_FINAL_COMPLETE` とは判定しない。
+PR #3のmerge、main CI、GitHub Pages再配備、公開URL再検証まで完了したため、個人用途の最終分類は`IPHONE_FIRST_PERSONAL_FINAL_COMPLETE`とする。証拠区分は`EMULATED_VERIFIED` / `LIVE_PAGES_VERIFIED`である。ただしphysical iPhone Safari / Home Screen PWA / 実software keyboard / 日本語IME / safe-area / resume / offline / Backup / VoiceOver / macOS Safari / Androidは`PHYSICAL_NOT_RUN` / NOT CLAIMEDであり、この最終分類はphysical device verifiedを意味しない。
+
+## Merge / public deployment evidence
+
+- PR #3は2026-09-11T08:45:02Zにmerge。merge commitは`aa91a5462694831941c17e4856fb12916a9b2d8f`。
+- main CI run `34580717627`とPages run `34580717646`はいずれも`success`。main CIのUnitはdeployment時点の128/128で、live/public validator回帰2件を加えた現行branchの130/130と区別する。
+- 公開live verifierは2026-09-11T09:14:43Zに13/13 PASS。installed Chrome 152とmanaged WebKit 26.5を390×844 / 430×932で使用し、horizontal overflow 0px、undersized control / input 0、precache 22/22 HTTP 200、非公開5 path HTTP 404を確認した。
+- installed Chromeではoffline Service Worker shellとschema 3 state保持を確認した。managed WebKit 26.5はSafariではない。
+- HTTPS validatorは2026-09-11T09:17:33Zに5/5 `PASS_HTTP_CONTRACT`。meta CSPと`no-referrer`を確認した。GitHub Pagesのresponse headerはhost-managedである。
+- 公開v15 Lighthouse 13.4.1は97 / 100 / 100 / 100。ローカルv15の91 / 100 / 100 / 100、および2026-09-04公開v14の100 / 100 / 100 / 100は別の履歴として保持する。
+- staged v14→v15は`PASS_WITH_HARNESS_RECOVERY`。旧v14 clientが安定し、v14 / v15 cacheが共存することを観測した。元harnessは再openが早すぎてtimeoutしたが、同じpersistent profileで回復を続け、v15 active、v15 cacheのみ、raw state byte-identical、無関係sentinel保持を確認した。timeoutを隠した無条件PASSではない。
 
 ## Baseline → after
 
@@ -28,7 +38,7 @@
 | offline → online | 接続復帰時の専用回復契約なし | origin-stop 中も検索・Collection 更新・Backup が動作し、同一 origin 復帰後も document reload なしで保存継続 | offline origin-stop case |
 | 保存失敗 | memory を先に更新するため QuotaExceeded 時に表示と永続値が不一致になり得た | clone → normalize → `localStorage.setItem` 成功後にのみ memory commit | QuotaExceeded atomicity case |
 | 複数タブ | 各ページの古い state を全量上書きし、異なる書込の一方が消え得た | 同一originのexclusive Web Lock内でstrict latest-read → mutation → save。古い`storage` eventも現在値の再読込で吸収 | lock holder待機中に異なる2 itemを同時writeし、解放後に両方保持 |
-| Service Worker 更新 | v14 が install 時に即 `skipWaiting` | v14→v15は全旧client終了後の次回起動で移行。v15画面から始まる将来更新はnoticeと`SKIP_WAITING`で明示handoff | SW unit / controllerchange E2E。physical v14→v15は`NOT_RUN` |
+| Service Worker 更新 | v14 が install 時に即 `skipWaiting` | v14→v15は全旧client終了後の次回起動で移行。v15画面から始まる将来更新はnoticeと`SKIP_WAITING`で明示handoff | SW unit / controllerchange E2E、公開staged `PASS_WITH_HARNESS_RECOVERY`。physical v14→v15は`NOT_RUN` |
 | cache mismatch | query 付き navigation が個別 cache key になり得た | navigation は scope 相対の canonical `index.html` だけを参照し、query URL を保存しない | SW fetch unit |
 
 ## 実装内容
@@ -50,7 +60,7 @@
 
 | 検証 | 結果 | 備考 |
 | --- | --- | --- |
-| Unit / contract | 128/128 PASS | strict readerのabsent / empty区別を含む全 Node test |
+| Current branch Unit / contract | 130/130 PASS | strict readerのabsent / empty区別とlive/public validator回帰2件を含む全Node test。main CI deployment時点は128/128 |
 | TypeScript `checkJs` | PASS | `pnpm typecheck` |
 | ESLint | PASS | `pnpm lint` |
 | 通常 browser E2E | 22/22 PASS | installed Chrome。既存機能回帰を含む |
@@ -59,6 +69,9 @@
 | Focused iPhone E2E — managed WebKit | 20/20 PASS | managed WebKit 26.5、141,474.6255ms、最終単独フルrun |
 | Screenshot capture | Chrome 27/27 PASS、managed WebKit 26.5 27/27 PASS | 最終 manifest / PNG は managed WebKit 版 |
 | Local Lighthouse 13.4.1 | 91 / 100 / 100 / 100 | Performance / Accessibility / Best Practices / SEO |
+| Public v15 live verifier | 13/13 PASS | 2026-09-11T09:14:43Z、Chrome 152 / managed WebKit 26.5、390×844 / 430×932 |
+| Public v15 HTTPS validator | 5/5 `PASS_HTTP_CONTRACT` | 2026-09-11T09:17:33Z、meta CSP / `no-referrer` |
+| Public v15 Lighthouse 13.4.1 | 97 / 100 / 100 / 100 | Performance / Accessibility / Best Practices / SEO |
 | CI / Pages gate definition | PASS（static） | Chromium / managed WebKit各20件。CI captureはengine別27枚artifact |
 
 20-case focused suiteは、7 viewportのlayout contract、390 / 430の主要導線、日本語IME、検索 / Collectionの戻り、resume event storm、origin-stop offline、Backup round trip、不正 / future import非破壊、Web Lock holderの後ろへ異なる2 itemの書込を同時待機させる2ページ競合、keyboard viewport、safe-area、lazy module recovery、QuotaExceeded、v15画面での将来Service Worker controller handoffを検証する。holder解放後は両IDが両ページとreload後の保存に残り、保存keyとschemaVersion 3も不変である。対象caseはinstalled Chrome 152 / managed WebKit 26.5で再PASSした。旧v14画面からの物理端末移行は検証対象外である。
@@ -92,11 +105,16 @@ managed WebKitでは最終PASS前に2回の失敗を記録した。19/20は意�
 | Physical iPhone Safari | `NOT_RUN` | Chrome / managed WebKit の結果から PASS を推定しない |
 | ホーム画面に追加した実 PWA | `NOT_RUN` | standalone manifest と shell は自動検証済みだが、実端末 UX は未確認 |
 | 実 iOS software keyboard / 日本語 IME | `NOT_RUN` | composition event と viewport 縮小は自動検証済み。実 keyboard PASS ではない |
+| 実iOS safe-area / 回転 | `NOT_RUN` | 合成insetとviewport classのPASSを実端末PASSにしない |
 | 実 background / resume / memory pressure | `NOT_RUN` | lifecycle event 合成は自動検証済み。iOS process eviction は未確認 |
+| 実offline cold start / OS再起動 | `NOT_RUN` | Chromeの公開offline shell PASSをiOS実機へ外挿しない |
+| 実Safari Files UIでのBackup | `NOT_RUN` | 自動download/import PASSを実SafariのShare / Files UI PASSにしない |
 | VoiceOver | `NOT_RUN` | DOM / focus の自動回帰を real screen reader PASS と扱わない |
+| macOS Safari | `NOT_RUN` | managed WebKit 26.5はSafariではない |
+| Android実機 | `NOT_RUN` | desktop Chrome / device viewportの結果からPASSを推定しない |
 | v14→v15の実Safari / Home Screen PWA移行 | `NOT_RUN` | LocalStorage保持は設計対象だが、旧sessionのroute / query / scroll保持は保証しない |
 | Web Locks非対応 / Safari Lockdown Modeの複数タブ | `OUT_OF_GUARANTEE` | 単一タブの保存は維持するが、`storage` event / BroadcastChannelのみでcross-tab排他を保証しない |
 
-## PR・merge・公開 URL
+## 最終判定
 
-本書作成時点はローカル候補の記録であり、PR 番号、merge commit、GitHub Actions run、Pages 再配備、公開 HTTPS URL の v15 / offline / update / Backup / persistence 再検証結果は未確定である。推測値は記録しない。**最終配備後に追記**する。
+`IPHONE_FIRST_PERSONAL_FINAL_COMPLETE`（`EMULATED_VERIFIED` / `LIVE_PAGES_VERIFIED`）。公開v15のmerge、CI、deployment、responsive geometry、precache、公開除外、offline shell、schema 3 persistence、HTTPS contractは上記の実測で完了した。physical iPhone / Safari / Home Screen / real keyboard / IME / safe-area / resume / offline / Backup / VoiceOver / macOS Safari / Androidは`PHYSICAL_NOT_RUN` / NOT CLAIMEDのままである。
