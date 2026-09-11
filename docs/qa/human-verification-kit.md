@@ -1,8 +1,10 @@
-# Human Verification Kit — iPhone-first / GitHub Pages v15 candidate
+# Human Verification Kit — iPhone-first / GitHub Pages v15 final
 
 このKitは、このWindows hostだけでは完了できない検証を別の監査者が再現し、機械結果と混同せず返却するためのものです。`PASS` は全必須stepと証拠が揃った場合だけ記入します。Emulation、axe、localhost、Playwright WebKitを、それぞれ実機、実screen reader、public HTTPS、Safariの代用にしません。
 
-2026-09-11のローカル自動baselineはUnit 128/128とcheckJs/Lint/Build/Data/Provenance/Evidence/Static/Security/ImagesがPASS、既存E2Eがinstalled Chrome 152.0.7977.83 22/22（16,708.4848ms）、Edge 152.0.4191.66 22/22（16,644.6033ms）、managed WebKit 26.5 22/22（32,808.9665ms）PASSです。focused iPhone E2Eはinstalled Chrome 20/20（36,526.2435ms）、managed WebKit 26.5 20/20（76,493.9532ms）、screen captureは両engine各27/27、Pages subpathは5/5、Lighthouse 13.4.1は91 / 100 / 100 / 100です。Firefoxは通常権限・権限昇格runともapp assertion前に`spawn UNKNOWN`となり`ENVIRONMENT_BLOCKED_BEFORE_APP_ASSERTIONS`です。これらにより以下のphysical iPhone / Safari / Home Screen / 実keyboard / 日本語IME / VoiceOver / Android手順を省略しません。
+2026-09-11の現行branch自動baselineは、live/public validator回帰2件を加えたUnit 130/130とcheckJs/Lint/Build/Data/Provenance/Evidence/Static/Security/ImagesがPASS、既存E2Eがinstalled Chrome 152.0.7977.83 22/22（16,708.4848ms）、Edge 152.0.4191.66 22/22（16,644.6033ms）、managed WebKit 26.5 22/22（32,808.9665ms）PASSです。focused iPhone E2Eはinstalled Chrome 20/20（36,526.2435ms）、managed WebKit 26.5 20/20（76,493.9532ms）、screen captureは両engine各27/27、Pages subpathは5/5、Lighthouse 13.4.1は91 / 100 / 100 / 100です。Firefoxは通常権限・権限昇格runともapp assertion前に`spawn UNKNOWN`となり`ENVIRONMENT_BLOCKED_BEFORE_APP_ASSERTIONS`です。これらにより以下のphysical iPhone / Safari / Home Screen / 実keyboard / 日本語IME / VoiceOver / Android手順を省略しません。
+
+v15はPR #3として2026-09-11T08:45:02Zにmergeされました（merge commit `aa91a5462694831941c17e4856fb12916a9b2d8f`）。main CI run `34580717627`とPages run `34580717646`は`success`です。main CIのUnit 128/128はdeployment時点の履歴であり、上記の現行branch 130/130と区別します。公開live verifierは2026-09-11T09:14:43Zに13/13 PASS、公開v15 Lighthouse 13.4.1は97 / 100 / 100 / 100、HTTPS validatorは2026-09-11T09:17:33Zに5/5 `PASS_HTTP_CONTRACT`でした。最終判定は`IPHONE_FIRST_PERSONAL_FINAL_COMPLETE`、証拠区分は`EMULATED_VERIFIED` / `LIVE_PAGES_VERIFIED`です。physical targetは引き続き`PHYSICAL_NOT_RUN` / NOT CLAIMEDです。
 
 ## 共通の対象固定
 
@@ -56,7 +58,13 @@ axeとaccessibility treeのPASSは参考添付に留め、上記の音声・focu
 4. v14→v15はBackup→全Safari tab / Home Screen PWA終了→オンライン再起動で検証し、durable LocalStorage state保持とv15 cacheへの移行を確認する。旧v14 sessionのroute/query/scroll保持やv14画面内のupdate noticeは要求しない。v15→次版のexplicit updateは別ケースとして、notice、1回だけのreload、route/query/scroll保持をSafari/iOS/Androidの実targetで確認する。
 5. CDN/proxyが`sw.js`を長期cacheせず、`index.html`とunhashed assetsがrevalidationされることをresponse headerで確認する。
 
-2026-09-04公開v14の自動live gateはPASS済みです。v15候補のPR、merge、再配備、公開live gateは本書更新時点で`NOT_RUN`であり、過去のv14 PASSを転用しません。物理iPhone/Safariでのv14→v15 close/reopen移行、Home Screen install、実keyboard / 日本語IME、background/resume、offline cold start、OS再起動、VoiceOver、およびAndroid実機は、このKitに従って別resultとして実施するまで`NOT_RUN`です。
+2026-09-04公開v14の自動live gateはhistorical PASSとして保持します。v15の公開live verifierはinstalled Chrome 152とmanaged WebKit 26.5を390×844 / 430×932で使い、13/13 PASSでした。horizontal overflowは0px、undersized control / inputは0、precacheは22/22 HTTP 200、非公開5 pathはHTTP 404でした。installed Chromeではoffline Service Worker shellとschema 3 state保持も確認しました。managed WebKitはSafariではありません。公開v15 Lighthouse 13.4.1は97 / 100 / 100 / 100です。
+
+staged v14→v15は`PASS_WITH_HARNESS_RECOVERY`です。旧v14 clientの安定とv14 / v15 cache共存を観測した後、元harnessは再openが早すぎてtimeoutしました。同じpersistent profileで回復を続け、v15 active、v15 cacheのみ、raw state byte-identical、無関係sentinel保持を確認しました。timeoutは失敗記録として保持し、physical Safari / Home Screen PWAのPASSへ読み替えません。
+
+HTTPS validatorは5/5 `PASS_HTTP_CONTRACT`で、documentのmeta CSPと`no-referrer`を確認しました。GitHub Pagesのresponse headerはhost-managedであり、repository側で任意のheader policyを設定したという証拠ではありません。
+
+物理iPhone / Safariでのv14→v15 close/reopen移行、Home Screen install、実keyboard / 日本語IME、実safe-area / 回転、実background / resume / memory pressure、実offline cold start、OS再起動、実Safari Files UIでのBackup、VoiceOver、macOS Safari、およびAndroid実機は、このKitに従って別resultとして実施するまで`NOT_RUN` / NOT CLAIMEDです。
 
 ## 日本版ADMJ実機・CONFLICT
 

@@ -26,6 +26,7 @@ if (!requestedUrl) {
 const url = new URL(requestedUrl);
 if (url.protocol !== "https:") throw new Error("WW_PUBLIC_URL must use https:");
 url.hash = "";
+const isGitHubPages = url.hostname.endsWith(".github.io");
 
 const checks = [];
 async function check(id, action) {
@@ -46,6 +47,20 @@ await check("root-https-200", async () => {
 
 await check("production-security-headers", async () => {
   if (!rootResponse) throw new Error("root request did not complete");
+  if (isGitHubPages) {
+    const hsts = rootResponse.headers.get("strict-transport-security") ?? "";
+    if (!/max-age=/i.test(hsts)) throw new Error(`strict-transport-security: ${hsts || "missing"}`);
+    const html = await rootResponse.clone().text();
+    const cspTag = /<meta\b[^>]*\bhttp-equiv=["']Content-Security-Policy["'][^>]*>/i.exec(html)?.[0] ?? "";
+    const referrerTag = /<meta\b[^>]*\bname=["']referrer["'][^>]*>/i.exec(html)?.[0] ?? "";
+    const csp = /\bcontent="([^"]+)"/i.exec(cspTag)?.[1] ?? "";
+    const referrer = /\bcontent="([^"]+)"/i.exec(referrerTag)?.[1] ?? "";
+    for (const fragment of ["default-src 'self'", "object-src 'none'", "base-uri 'none'", "form-action 'none'"]) {
+      if (!csp.toLowerCase().includes(fragment.toLowerCase())) throw new Error(`document CSP missing ${fragment}`);
+    }
+    if (referrer.toLowerCase() !== "no-referrer") throw new Error(`document referrer policy: ${referrer || "missing"}`);
+    return "GitHub Pages HSTS plus repository-controlled self-only document CSP/no-referrer policy present";
+  }
   const required = {
     "content-security-policy": ["default-src 'self'", "frame-ancestors 'none'", "object-src 'none'"],
     "strict-transport-security": ["max-age="],
@@ -92,8 +107,20 @@ await check("service-worker-v15", async () => {
     throw new Error("legacy relative global-cache navigation lookup is still present");
   }
   const cacheControl = response.headers.get("cache-control") ?? "";
-  if (!/(no-cache|no-store|max-age=0)/i.test(cacheControl)) throw new Error(`unsafe sw cache-control: ${cacheControl || "missing"}`);
-  return `v15 canonical navigation shell; cache-control ${cacheControl}`;
+  let cacheDetail = cacheControl;
+  if (!/(no-cache|no-store|max-age=0)/i.test(cacheControl)) {
+    const maxAge = Number(/max-age=(\d+)/i.exec(cacheControl)?.[1] ?? Number.NaN);
+    const appResponse = await fetch(new URL("./src/app.js", rootResponse?.url ?? url), { cache: "no-store" });
+    const appBody = await appResponse.text();
+    const bypassesWorkerScriptCache = appResponse.ok
+      && /register\("\.\/sw\.js",\s*\{\s*updateViaCache:\s*"none"\s*\}\)/.test(appBody)
+      && /registration\.update\(\)/.test(appBody);
+    if (!isGitHubPages || !Number.isFinite(maxAge) || maxAge > 600 || !bypassesWorkerScriptCache) {
+      throw new Error(`unsafe sw cache-control: ${cacheControl || "missing"}`);
+    }
+    cacheDetail = `${cacheControl}; updateViaCache=none and explicit update() bypass the managed 600s cache`;
+  }
+  return `v15 canonical navigation shell; cache-control ${cacheDetail}`;
 });
 
 await check("icons", async () => {
@@ -114,6 +141,7 @@ const report = {
     checks,
     limits: [
       "HTTP contract PASS does not prove install, offline, update, or physical-device behavior.",
+      "On GitHub Pages, response headers are host-managed; the repository-controlled CSP and referrer policy are document meta policies and cannot provide frame-ancestors, X-Content-Type-Options, or Permissions-Policy response headers.",
       "Run the Human Verification Kit on the authorized endpoint before changing the release gate."
     ]
   }
